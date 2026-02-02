@@ -62,7 +62,7 @@ Quando apri la finestra di dialogo Gemini con NVDA+G:
 
 ### Suggerimenti per la finestra di dialogo
 
-* Premi Invio nel campo messaggio per inviare rapidamente
+* Premi ctrl+invio nel campo messaggio per inviare rapidamente
 * Usa Tab per navigare tra i controlli
 * La cronologia si aggiorna automaticamente mentre chatti
 * Le immagini allegate vengono inviate con il tuo prossimo messaggio

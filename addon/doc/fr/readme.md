@@ -62,7 +62,7 @@ Lorsque vous ouvrez le dialogue Gemini avec NVDA+G:
 
 ### Conseils pour le dialogue
 
-* Appuyez sur Entree dans le champ message pour envoyer rapidement
+* Appuyez sur ctrl+entree dans le champ message pour envoyer rapidement
 * Utilisez Tab pour naviguer entre les controles
 * L'historique se met a jour automatiquement pendant que vous chattez
 * Les images jointes sont envoyees avec votre prochain message

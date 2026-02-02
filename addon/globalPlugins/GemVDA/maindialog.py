@@ -1,0 +1,933 @@
+# Gemini NVDA Add-on - Main Dialog
+# -*- coding: utf-8 -*-
+
+import os
+import sys
+import threading
+import base64
+import time
+import wx
+import winsound
+
+import addonHandler
+import config
+import ui
+import braille
+import speech
+from logHandler import log
+from gui import guiHelper
+
+addonHandler.initTranslation()
+
+from .consts import (
+    DATA_DIR,
+    LIBS_DIR,
+    DEFAULT_SYSTEM_PROMPT,
+    DEFAULT_SCREENSHOT_PROMPT,
+    DEFAULT_OBJECT_PROMPT,
+    GEMINI_MODELS,
+    get_model_by_id,
+    get_model_choices,
+    SND_CHAT_REQUEST_SENT,
+    SND_CHAT_RESPONSE_PENDING,
+    SND_CHAT_RESPONSE_RECEIVED,
+)
+from .resultevent import EVT_RESULT, ResultEvent
+from .mdfilter import filter_markdown
+
+# Add lib directory to path for google-genai
+if LIBS_DIR not in sys.path:
+    sys.path.insert(0, LIBS_DIR)
+
+try:
+    from google import genai
+    from google.genai import types
+    GENAI_AVAILABLE = True
+except ImportError:
+    GENAI_AVAILABLE = False
+    log.warning("google-genai not available. Run install_deps.py to install dependencies.")
+
+# Global reference to active dialog for adding images
+addToSession = None
+
+# Configuration reference
+conf = None
+
+
+class HistoryBlock:
+    """Represents a message in the conversation history."""
+
+    def __init__(self, role: str, text: str = "", images: list = None, videos: list = None):
+        self.role = role  # "user" or "model"
+        self.text = text
+        self.images = images or []
+        self.videos = videos or []  # List of (path, uploaded_file) tuples
+        self.focused = False
+
+
+# Supported video formats and their MIME types
+VIDEO_MIME_TYPES = {
+    ".mp4": "video/mp4",
+    ".mpeg": "video/mpeg",
+    ".mpg": "video/mpeg",
+    ".mov": "video/mov",
+    ".avi": "video/avi",
+    ".flv": "video/x-flv",
+    ".webm": "video/webm",
+    ".wmv": "video/wmv",
+    ".3gp": "video/3gpp",
+    ".3gpp": "video/3gpp",
+}
+
+
+class CompletionThread(threading.Thread):
+    """Background thread for Gemini API calls."""
+
+    def __init__(
+        self,
+        notify_window,
+        client,
+        model_id: str,
+        contents: list,
+        config_obj,
+        stream: bool = True,
+    ):
+        threading.Thread.__init__(self, daemon=True)
+        self._notify_window = notify_window
+        self._client = client
+        self._model_id = model_id
+        self._contents = contents
+        self._config = config_obj
+        self._stream = stream
+        self._stop_event = threading.Event()
+
+    def _safe_post_event(self, data):
+        """Safely post event to window, handling case where window is destroyed."""
+        try:
+            if self._notify_window and not self._stop_event.is_set():
+                wx.PostEvent(self._notify_window, ResultEvent(data))
+        except RuntimeError:
+            # Window was destroyed
+            pass
+
+    def run(self):
+        try:
+            if self._stream:
+                self._run_streaming()
+            else:
+                self._run_sync()
+        except Exception as e:
+            log.error(f"Gemini API error: {e}", exc_info=True)
+            self._safe_post_event({"error": str(e)})
+
+    def _run_streaming(self):
+        response_text = ""
+        try:
+            response = self._client.models.generate_content_stream(
+                model=self._model_id,
+                contents=self._contents,
+                config=self._config,
+            )
+
+            for chunk in response:
+                if self._stop_event.is_set():
+                    break
+                if chunk.text:
+                    response_text += chunk.text
+                    self._safe_post_event({"chunk": chunk.text, "done": False})
+
+            self._safe_post_event({"text": response_text, "done": True})
+        except Exception as e:
+            log.error(f"Streaming error: {e}", exc_info=True)
+            self._safe_post_event({"error": str(e)})
+
+    def _run_sync(self):
+        try:
+            response = self._client.models.generate_content(
+                model=self._model_id,
+                contents=self._contents,
+                config=self._config,
+            )
+            self._safe_post_event({"text": response.text, "done": True})
+        except Exception as e:
+            log.error(f"Sync error: {e}", exc_info=True)
+            self._safe_post_event({"error": str(e)})
+
+    def stop(self):
+        self._stop_event.set()
+
+
+class GeminiDialog(wx.Dialog):
+    """Main dialog for interacting with Gemini."""
+
+    def __init__(self, parent, client, conf_ref):
+        global addToSession, conf
+        conf = conf_ref
+
+        # Translators: Title of the main Gemini dialog
+        title = _("Gemini AI")
+        super().__init__(
+            parent,
+            title=title,
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER | wx.MAXIMIZE_BOX,
+        )
+
+        self._client = client
+        self._conf = conf_ref
+        self._history: list[HistoryBlock] = []
+        self._current_thread: CompletionThread | None = None
+        self._pending_images: list[str] = []  # Paths to images to send
+        self._pending_videos: list[str] = []  # Paths to videos to send
+        self._uploaded_videos: list[tuple] = []  # (path, uploaded_file) tuples
+
+        # For double-press detection on Alt+number keys
+        self._last_message_key: int | None = None
+        self._last_message_key_time: float = 0.0
+        self._DOUBLE_PRESS_THRESHOLD = 0.5  # seconds
+
+        # Track streaming state for speech
+        self._received_streaming_chunks = False
+
+        # Track current prompt type for saving (screenshot, object, or None)
+        self._current_prompt_type: str | None = None
+
+        addToSession = self
+
+        self._init_ui()
+        self._bind_events()
+
+        self.SetSize((800, 600))
+        self.CenterOnParent()
+
+    def focus_prompt(self):
+        """Focus the prompt text field and raise the dialog."""
+        try:
+            self.Raise()
+            self.SetFocus()
+            self._prompt_text.SetFocus()
+        except RuntimeError:
+            # Dialog may have been destroyed
+            pass
+
+    def _init_ui(self):
+        panel = wx.Panel(self)
+        main_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        # Model selection
+        model_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        # Translators: Label for model selection dropdown
+        model_label = wx.StaticText(panel, label=_("M&odel:"))
+        model_sizer.Add(model_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
+
+        model_choices = [m.name for m in GEMINI_MODELS]
+        self._model_choice = wx.Choice(panel, choices=model_choices)
+
+        # Set default model
+        current_model = self._conf["GemVDA"]["model"]
+        for i, m in enumerate(GEMINI_MODELS):
+            if m.id == current_model:
+                self._model_choice.SetSelection(i)
+                break
+        else:
+            self._model_choice.SetSelection(0)
+
+        model_sizer.Add(self._model_choice, 1, wx.EXPAND)
+        main_sizer.Add(model_sizer, 0, wx.EXPAND | wx.ALL, 10)
+
+        # System prompt (collapsible)
+        # Translators: Label for system prompt section
+        system_label = wx.StaticText(panel, label=_("S&ystem prompt:"))
+        main_sizer.Add(system_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
+
+        self._system_text = wx.TextCtrl(
+            panel,
+            style=wx.TE_MULTILINE,
+            size=(-1, 60),
+        )
+        # If saveSystemPrompt is enabled, use the saved value (even if blank)
+        # Otherwise, use the default system prompt
+        if self._conf["GemVDA"]["saveSystemPrompt"]:
+            self._system_text.SetValue(self._conf["GemVDA"]["customSystemPrompt"])
+        else:
+            self._system_text.SetValue(DEFAULT_SYSTEM_PROMPT)
+        main_sizer.Add(self._system_text, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+
+        # Messages display
+        # Translators: Label for conversation messages
+        messages_label = wx.StaticText(panel, label=_("&Messages:"))
+        main_sizer.Add(messages_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
+
+        self._history_text = wx.TextCtrl(
+            panel,
+            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2,
+        )
+        main_sizer.Add(self._history_text, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+
+        # Prompt input
+        # Translators: Label for user prompt input
+        prompt_label = wx.StaticText(panel, label=_("&Prompt:"))
+        main_sizer.Add(prompt_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
+
+        self._prompt_text = wx.TextCtrl(
+            panel,
+            style=wx.TE_MULTILINE,
+            size=(-1, 80),
+        )
+        main_sizer.Add(self._prompt_text, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+
+        # Image indicator
+        self._image_label = wx.StaticText(panel, label="")
+        main_sizer.Add(self._image_label, 0, wx.LEFT | wx.RIGHT, 10)
+
+        # Buttons
+        button_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        # Translators: Button to send message
+        self._send_btn = wx.Button(panel, label=_("&Send"))
+        self._send_btn.SetDefault()
+        button_sizer.Add(self._send_btn, 0, wx.RIGHT, 5)
+
+        # Translators: Button to attach image
+        self._image_btn = wx.Button(panel, label=_("Attach &Image..."))
+        button_sizer.Add(self._image_btn, 0, wx.RIGHT, 5)
+
+        # Translators: Button to attach video
+        self._video_btn = wx.Button(panel, label=_("Attach &Video..."))
+        button_sizer.Add(self._video_btn, 0, wx.RIGHT, 5)
+
+        # Translators: Button to clear conversation
+        self._clear_btn = wx.Button(panel, label=_("&Clear"))
+        button_sizer.Add(self._clear_btn, 0, wx.RIGHT, 5)
+
+        # Translators: Button to copy last response
+        self._copy_btn = wx.Button(panel, label=_("C&opy Response"))
+        button_sizer.Add(self._copy_btn, 0, wx.RIGHT, 5)
+
+        button_sizer.AddStretchSpacer()
+
+        # Translators: Button to close dialog
+        self._close_btn = wx.Button(panel, wx.ID_CLOSE, label=_("Close"))
+        button_sizer.Add(self._close_btn, 0)
+
+        main_sizer.Add(button_sizer, 0, wx.EXPAND | wx.ALL, 10)
+
+        panel.SetSizer(main_sizer)
+
+    def _bind_events(self):
+        self._send_btn.Bind(wx.EVT_BUTTON, self._on_send)
+        self._image_btn.Bind(wx.EVT_BUTTON, self._on_attach_image)
+        self._video_btn.Bind(wx.EVT_BUTTON, self._on_attach_video)
+        self._clear_btn.Bind(wx.EVT_BUTTON, self._on_clear)
+        self._copy_btn.Bind(wx.EVT_BUTTON, self._on_copy_response)
+        self._close_btn.Bind(wx.EVT_BUTTON, self._on_close)
+
+        self.Bind(wx.EVT_CLOSE, self._on_close)
+        self.Bind(wx.EVT_CHAR_HOOK, self._on_key)
+
+        EVT_RESULT(self, self._on_result)
+
+    def _on_key(self, event):
+        key = event.GetKeyCode()
+
+        # Ctrl+Enter to send
+        if key == wx.WXK_RETURN and event.ControlDown():
+            self._on_send(None)
+            return
+
+        # Escape to close (if not blocked)
+        if key == wx.WXK_ESCAPE:
+            if not self._conf["GemVDA"]["blockEscapeKey"]:
+                self._on_close(None)
+                return
+
+        # Alt+1 through Alt+0 to read/copy messages
+        if event.AltDown() and not event.ControlDown() and not event.ShiftDown():
+            # Check for number keys (0-9)
+            # wx.WXK_NUMPAD0-9 for numpad, ord('0')-ord('9') for main keyboard
+            message_index = None
+
+            if ord('1') <= key <= ord('9'):
+                message_index = key - ord('1')  # 0-8 for keys 1-9
+            elif key == ord('0'):
+                message_index = 9  # 9 for key 0 (10th message)
+            elif wx.WXK_NUMPAD1 <= key <= wx.WXK_NUMPAD9:
+                message_index = key - wx.WXK_NUMPAD1  # 0-8 for numpad 1-9
+            elif key == wx.WXK_NUMPAD0:
+                message_index = 9  # 9 for numpad 0 (10th message)
+
+            if message_index is not None:
+                current_time = time.time()
+                is_double_press = (
+                    self._last_message_key == key and
+                    (current_time - self._last_message_key_time) < self._DOUBLE_PRESS_THRESHOLD
+                )
+
+                if is_double_press:
+                    # Double press - copy to clipboard
+                    self._copy_message_by_index(message_index)
+                    self._last_message_key = None
+                    self._last_message_key_time = 0.0
+                else:
+                    # Single press - read message
+                    self._read_message_by_index(message_index)
+                    self._last_message_key = key
+                    self._last_message_key_time = current_time
+                return
+
+        event.Skip()
+
+    def _format_message(self, block: HistoryBlock) -> str:
+        """Format a single message for reading or copying."""
+        text = block.text or ""
+        if self._conf["GemVDA"]["filterMarkdown"]:
+            text = filter_markdown(text)
+
+        # Translators: Label for user messages when reading history
+        # Translators: Label for Gemini messages when reading history
+        role_label = _("You") if block.role == "user" else _("Gemini")
+        return _("{role}: {text}").format(role=role_label, text=text)
+
+    def _read_message_by_index(self, index: int):
+        """Read the message at the given index (0 = most recent)."""
+        if not self._history:
+            # Translators: Message when there are no messages in history
+            ui.message(_("No messages in history"))
+            return
+
+        # Get messages in reverse order (most recent first)
+        reversed_history = list(reversed(self._history))
+
+        if index >= len(reversed_history):
+            # Translators: Message when requested message doesn't exist
+            ui.message(_("Message {num} not available. Only {total} message(s) in history.").format(
+                num=index + 1,
+                total=len(reversed_history)
+            ))
+            return
+
+        block = reversed_history[index]
+        message_text = self._format_message(block)
+
+        if message_text.strip():
+            speech.speakText(message_text)
+        else:
+            # Translators: Message when the selected message is empty
+            ui.message(_("Message {num} is empty").format(num=index + 1))
+
+    def _copy_message_by_index(self, index: int):
+        """Copy the message at the given index to clipboard."""
+        import api as nvda_api
+
+        if not self._history:
+            # Translators: Message when there are no messages to copy
+            ui.message(_("No messages to copy"))
+            return
+
+        # Get messages in reverse order (most recent first)
+        reversed_history = list(reversed(self._history))
+
+        if index >= len(reversed_history):
+            # Translators: Message when requested message for copying doesn't exist
+            ui.message(_("Message {num} not available. Only {total} message(s) in history.").format(
+                num=index + 1,
+                total=len(reversed_history)
+            ))
+            return
+
+        block = reversed_history[index]
+        # For copying, just copy the text content without the role label
+        text = block.text or ""
+        if self._conf["GemVDA"]["filterMarkdown"]:
+            text = filter_markdown(text)
+
+        if text.strip():
+            nvda_api.copyToClip(text)
+            # Translators: Message when a message is copied to clipboard
+            ui.message(_("Message {num} copied to clipboard").format(num=index + 1))
+        else:
+            # Translators: Message when the selected message is empty and cannot be copied
+            ui.message(_("Message {num} is empty, nothing to copy").format(num=index + 1))
+
+    def _on_send(self, event):
+        prompt = self._prompt_text.GetValue().strip()
+        if not prompt and not self._pending_images and not self._pending_videos:
+            return
+
+        # Upload videos first if any
+        if self._pending_videos:
+            self._send_btn.Disable()
+            self._video_btn.Disable()
+            # Translators: Message while uploading videos
+            ui.message(_("Uploading videos..."))
+            threading.Thread(
+                target=self._upload_videos_and_send,
+                args=(prompt,),
+                daemon=True
+            ).start()
+            return
+
+        # Get selected model
+        model_idx = self._model_choice.GetSelection()
+        model = GEMINI_MODELS[model_idx]
+
+        # Build contents for API using proper types
+        contents = []
+
+        # Add system instruction
+        system_prompt = self._system_text.GetValue().strip()
+
+        # Build conversation history
+        if self._conf["GemVDA"]["conversationMode"]:
+            for block in self._history:
+                content_parts = []
+                if block.text:
+                    # Create Part with text keyword argument
+                    content_parts.append(types.Part(text=block.text))
+                # Re-encode images from stored paths
+                for img_path in block.images:
+                    if isinstance(img_path, str):
+                        img_part = self._encode_image(img_path)
+                        if img_part:
+                            content_parts.append(img_part)
+                # Add video references from history
+                for video_info in block.videos:
+                    if isinstance(video_info, tuple) and len(video_info) == 2:
+                        path, uploaded_file = video_info
+                        if uploaded_file:
+                            ext = os.path.splitext(path)[1].lower()
+                            mime_type = VIDEO_MIME_TYPES.get(ext, "video/mp4")
+                            content_parts.append(types.Part.from_uri(
+                                file_uri=uploaded_file.uri,
+                                mime_type=mime_type,
+                            ))
+
+                if content_parts:
+                    contents.append(types.Content(
+                        role=block.role,
+                        parts=content_parts
+                    ))
+
+        # Build current message parts
+        current_parts = []
+
+        # Add images first
+        for img_path in self._pending_images:
+            try:
+                img_data = self._encode_image(img_path)
+                if img_data:
+                    current_parts.append(img_data)
+            except Exception as e:
+                log.error(f"Error encoding image: {e}")
+
+        # Add uploaded videos
+        for path, uploaded_file in self._uploaded_videos:
+            if uploaded_file:
+                ext = os.path.splitext(path)[1].lower()
+                mime_type = VIDEO_MIME_TYPES.get(ext, "video/mp4")
+                current_parts.append(types.Part.from_uri(
+                    file_uri=uploaded_file.uri,
+                    mime_type=mime_type,
+                ))
+
+        # Add text as Part object
+        if prompt:
+            current_parts.append(types.Part(text=prompt))
+
+        contents.append(types.Content(role="user", parts=current_parts))
+
+        # Add to history
+        user_block = HistoryBlock(
+            "user", prompt, self._pending_images.copy(), self._uploaded_videos.copy()
+        )
+        self._history.append(user_block)
+        self._update_history_display()
+
+        # Save prompt if we have a prompt type (screenshot or object)
+        if self._current_prompt_type and prompt:
+            if self._current_prompt_type == "screenshot":
+                self._conf["GemVDA"]["screenshotPrompt"] = prompt
+            elif self._current_prompt_type == "object":
+                self._conf["GemVDA"]["objectPrompt"] = prompt
+            # Reset prompt type after saving
+            self._current_prompt_type = None
+            # Save config
+            try:
+                config.conf.save()
+            except Exception:
+                pass
+
+        # Clear inputs
+        self._prompt_text.SetValue("")
+        self._pending_images.clear()
+        self._uploaded_videos.clear()
+        self._update_attachment_label()
+
+        # Disable send button
+        self._send_btn.Disable()
+
+        # Play send sound
+        if self._conf["GemVDA"]["feedback"]["soundRequestSent"]:
+            self._play_sound(SND_CHAT_REQUEST_SENT)
+
+        # Create generation config
+        gen_config = types.GenerateContentConfig(
+            system_instruction=system_prompt if system_prompt else None,
+            temperature=self._conf["GemVDA"]["temperature"],
+            top_p=self._conf["GemVDA"]["topP"],
+            top_k=self._conf["GemVDA"]["topK"],
+            max_output_tokens=self._conf["GemVDA"]["maxOutputTokens"],
+        )
+
+        # Start completion thread
+        self._current_thread = CompletionThread(
+            notify_window=self,
+            client=self._client,
+            model_id=model.id,
+            contents=contents,
+            config_obj=gen_config,
+            stream=self._conf["GemVDA"]["stream"],
+        )
+        self._current_thread.start()
+
+        # Start pending sound
+        if self._conf["GemVDA"]["feedback"]["soundResponsePending"]:
+            self._play_sound(SND_CHAT_RESPONSE_PENDING, loop=True)
+
+    def _encode_image(self, path: str) -> dict | None:
+        """Encode an image file to base64 for API."""
+        try:
+            with open(path, "rb") as f:
+                data = f.read()
+
+            # Determine mime type
+            ext = os.path.splitext(path)[1].lower()
+            mime_types = {
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".png": "image/png",
+                ".gif": "image/gif",
+                ".webp": "image/webp",
+            }
+            mime_type = mime_types.get(ext, "image/jpeg")
+
+            return types.Part.from_bytes(data=data, mime_type=mime_type)
+        except Exception as e:
+            log.error(f"Error encoding image {path}: {e}")
+            return None
+
+    def _on_result(self, event):
+        data = event.data
+
+        if "error" in data:
+            # Stop pending sound
+            winsound.PlaySound(None, winsound.SND_PURGE)
+
+            # Translators: Error message prefix
+            error_msg = _("Error: {error}").format(error=data["error"])
+            ui.message(error_msg)
+            self._send_btn.Enable()
+            self._received_streaming_chunks = False
+            return
+
+        if "chunk" in data and not data.get("done"):
+            # Streaming chunk - append to history display
+            if self._history and self._history[-1].role == "model":
+                self._history[-1].text += data["chunk"]
+            else:
+                self._history.append(HistoryBlock("model", data["chunk"]))
+            self._update_history_display()
+
+            # Speak streaming chunk immediately
+            if self._conf["GemVDA"]["feedback"]["speechResponseReceived"]:
+                chunk_text = data["chunk"]
+                if chunk_text:
+                    # Apply markdown filter if enabled
+                    if self._conf["GemVDA"]["filterMarkdown"]:
+                        chunk_text = filter_markdown(chunk_text)
+                    if chunk_text.strip():  # Only speak non-empty chunks
+                        speech.speakText(chunk_text)
+
+            # Track that we received streaming chunks
+            self._received_streaming_chunks = True
+            return
+
+        if data.get("done"):
+            # Stop pending sound
+            winsound.PlaySound(None, winsound.SND_PURGE)
+
+            # Final response
+            was_streaming = getattr(self, '_received_streaming_chunks', False)
+            if "text" in data:
+                if self._history and self._history[-1].role == "model":
+                    # Already accumulated from streaming
+                    pass
+                else:
+                    self._history.append(HistoryBlock("model", data["text"]))
+
+            self._update_history_display()
+            self._send_btn.Enable()
+
+            # Play received sound
+            if self._conf["GemVDA"]["feedback"]["soundResponseReceived"]:
+                self._play_sound(SND_CHAT_RESPONSE_RECEIVED)
+
+            # Announce response (only if not streaming, since we already spoke chunks)
+            if self._conf["GemVDA"]["feedback"]["speechResponseReceived"] and not was_streaming:
+                response_text = self._history[-1].text if self._history else ""
+                if response_text:
+                    # Apply markdown filter if enabled
+                    if self._conf["GemVDA"]["filterMarkdown"]:
+                        response_text = filter_markdown(response_text)
+                    speech.speakText(response_text[:500])  # Limit initial speech
+
+            # Update braille
+            if self._conf["GemVDA"]["feedback"]["brailleAutoFocus"]:
+                response_text = self._history[-1].text if self._history else ""
+                if response_text:
+                    # Apply markdown filter if enabled
+                    if self._conf["GemVDA"]["filterMarkdown"]:
+                        response_text = filter_markdown(response_text)
+                    braille.handler.message(response_text[:100])
+
+            # Reset streaming flag for next request
+            self._received_streaming_chunks = False
+
+    def _update_history_display(self):
+        """Update the history text control."""
+        lines = []
+        for block in self._history:
+            # Translators: Label for user messages in history
+            role_label = _("You") if block.role == "user" else _("Gemini")
+            text = block.text or ""
+
+            # Apply markdown filter to model responses if enabled
+            if block.role == "model" and self._conf["GemVDA"]["filterMarkdown"]:
+                text = filter_markdown(text)
+
+            # Build attachment indicators
+            attachments = []
+            if block.images:
+                # Translators: Indicator for attached images
+                attachments.append(_("{count} image(s)").format(count=len(block.images)))
+            if block.videos:
+                # Translators: Indicator for attached videos
+                attachments.append(_("{count} video(s)").format(count=len(block.videos)))
+
+            if attachments:
+                attachment_text = ", ".join(attachments)
+                text = f"[{attachment_text}] {text}"
+
+            lines.append(f"{role_label}: {text}")
+            lines.append("")
+
+        self._history_text.SetValue("\n".join(lines))
+        # Scroll to end
+        self._history_text.SetInsertionPointEnd()
+
+    def _on_attach_image(self, event):
+        # Translators: Title of image file selection dialog
+        dlg = wx.FileDialog(
+            self,
+            _("Select Image"),
+            wildcard=_("Image files (*.png;*.jpg;*.jpeg;*.gif;*.webp)|*.png;*.jpg;*.jpeg;*.gif;*.webp"),
+            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST | wx.FD_MULTIPLE,
+        )
+
+        if dlg.ShowModal() == wx.ID_OK:
+            paths = dlg.GetPaths()
+            self._pending_images.extend(paths)
+            self._update_attachment_label()
+
+        dlg.Destroy()
+
+    def _on_attach_video(self, event):
+        # Build wildcard from supported formats
+        extensions = ";".join(f"*{ext}" for ext in VIDEO_MIME_TYPES.keys())
+        # Translators: Title of video file selection dialog
+        dlg = wx.FileDialog(
+            self,
+            _("Select Video"),
+            wildcard=_("Video files ({ext})|{ext}").format(ext=extensions),
+            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST | wx.FD_MULTIPLE,
+        )
+
+        if dlg.ShowModal() == wx.ID_OK:
+            paths = dlg.GetPaths()
+            self._pending_videos.extend(paths)
+            self._update_attachment_label()
+
+        dlg.Destroy()
+
+    def _update_attachment_label(self):
+        parts = []
+        if self._pending_images:
+            # Translators: Label showing number of attached images
+            parts.append(_("{count} image(s)").format(count=len(self._pending_images)))
+        if self._pending_videos:
+            # Translators: Label showing number of attached videos
+            parts.append(_("{count} video(s)").format(count=len(self._pending_videos)))
+        if self._uploaded_videos:
+            # Translators: Label showing number of uploaded videos ready to send
+            parts.append(_("{count} video(s) uploaded").format(count=len(self._uploaded_videos)))
+
+        if parts:
+            self._image_label.SetLabel(", ".join(parts) + _(" attached"))
+        else:
+            self._image_label.SetLabel("")
+
+    # Keep old name for compatibility
+    def _update_image_label(self):
+        self._update_attachment_label()
+
+    def _upload_videos_and_send(self, prompt: str):
+        """Upload videos in background thread, then trigger send."""
+        import time
+
+        try:
+            for video_path in self._pending_videos:
+                ext = os.path.splitext(video_path)[1].lower()
+                mime_type = VIDEO_MIME_TYPES.get(ext, "video/mp4")
+
+                # Upload video file
+                uploaded_file = self._client.files.upload(
+                    file=video_path,
+                    config={"mime_type": mime_type},
+                )
+
+                # Wait for processing
+                while uploaded_file.state.name == "PROCESSING":
+                    time.sleep(1)
+                    uploaded_file = self._client.files.get(name=uploaded_file.name)
+
+                if uploaded_file.state.name == "FAILED":
+                    wx.CallAfter(
+                        ui.message,
+                        _("Video upload failed: {path}").format(path=os.path.basename(video_path))
+                    )
+                    continue
+
+                self._uploaded_videos.append((video_path, uploaded_file))
+
+            # Clear pending videos
+            self._pending_videos.clear()
+
+            # Update label and trigger send on main thread
+            wx.CallAfter(self._update_attachment_label)
+            wx.CallAfter(self._video_btn.Enable)
+            wx.CallAfter(self._do_send_with_videos, prompt)
+
+        except Exception as e:
+            log.error(f"Video upload failed: {e}", exc_info=True)
+            wx.CallAfter(ui.message, _("Video upload failed: {error}").format(error=str(e)))
+            wx.CallAfter(self._send_btn.Enable)
+            wx.CallAfter(self._video_btn.Enable)
+
+    def _do_send_with_videos(self, prompt: str):
+        """Continue sending after videos are uploaded."""
+        # Re-trigger send with the prompt (videos are now in _uploaded_videos)
+        self._prompt_text.SetValue(prompt)
+        self._on_send(None)
+
+    def _on_clear(self, event):
+        self._history.clear()
+        self._pending_images.clear()
+        self._pending_videos.clear()
+        self._uploaded_videos.clear()
+        self._update_history_display()
+        self._update_attachment_label()
+        self._prompt_text.SetFocus()
+        # Translators: Message when conversation is cleared
+        ui.message(_("Conversation cleared"))
+
+    def _on_copy_response(self, event):
+        if self._history:
+            # Find last model response
+            for block in reversed(self._history):
+                if block.role == "model" and block.text:
+                    import api
+                    api.copyToClip(block.text)
+                    # Translators: Message when response is copied
+                    ui.message(_("Response copied to clipboard"))
+                    return
+
+        # Translators: Message when there's no response to copy
+        ui.message(_("No response to copy"))
+
+    def _on_close(self, event):
+        global addToSession
+        addToSession = None
+
+        # Stop any running thread
+        if self._current_thread and self._current_thread.is_alive():
+            self._current_thread.stop()
+
+        # Stop sounds
+        winsound.PlaySound(None, winsound.SND_PURGE)
+
+        # Save system prompt if enabled
+        if self._conf["GemVDA"]["saveSystemPrompt"]:
+            self._conf["GemVDA"]["customSystemPrompt"] = self._system_text.GetValue()
+            # Trigger config save to persist changes
+            try:
+                import config
+                config.conf.save()
+            except Exception:
+                pass
+
+        self.Destroy()
+
+    def _play_sound(self, path: str, loop: bool = False):
+        """Play a sound file."""
+        if not os.path.exists(path):
+            return
+        flags = winsound.SND_ASYNC
+        if loop:
+            flags |= winsound.SND_LOOP
+        try:
+            winsound.PlaySound(path, flags)
+        except Exception:
+            pass
+
+    def add_images(self, paths: list[str], prompt_type: str | None = None):
+        """Add images from external source (e.g., screenshot).
+
+        Args:
+            paths: List of image file paths to add
+            prompt_type: Type of prompt to use - "screenshot", "object", or None
+        """
+        self._pending_images.extend(paths)
+        self._update_attachment_label()
+
+        # Track prompt type for saving later
+        self._current_prompt_type = prompt_type
+
+        # Pre-fill prompt if empty and we have a prompt type
+        if prompt_type and not self._prompt_text.GetValue().strip():
+            if prompt_type == "screenshot":
+                saved_prompt = self._conf["GemVDA"]["screenshotPrompt"]
+                default_prompt = DEFAULT_SCREENSHOT_PROMPT
+            elif prompt_type == "object":
+                saved_prompt = self._conf["GemVDA"]["objectPrompt"]
+                default_prompt = DEFAULT_OBJECT_PROMPT
+            else:
+                saved_prompt = ""
+                default_prompt = ""
+
+            # Use saved prompt if available, otherwise use default
+            prompt_to_use = saved_prompt if saved_prompt else default_prompt
+            if prompt_to_use:
+                self._prompt_text.SetValue(prompt_to_use)
+
+        if not self.IsShown():
+            self.Show()
+        self.Raise()
+        self._prompt_text.SetFocus()
+
+    def add_videos(self, paths: list[str]):
+        """Add videos from external source (e.g., screen recording)."""
+        self._pending_videos.extend(paths)
+        self._update_attachment_label()
+        if not self.IsShown():
+            self.Show()
+        self.Raise()
+        self._prompt_text.SetFocus()

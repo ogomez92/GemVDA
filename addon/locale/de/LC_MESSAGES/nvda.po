@@ -232,6 +232,14 @@ msgstr "Objekt wird erfasst..."
 msgid "Failed to capture object"
 msgstr "Objekterfassung fehlgeschlagen"
 
+#. Translators: Label for video analysis prompt text field
+msgid "&Video analysis prompt:"
+msgstr "&Videoanalyse-Prompt:"
+
+#. Translators: Default video analysis prompt sent to the AI model
+msgid "Describe this video in detail, but concise. Get as much information as you can and if there is any important text in the video read it."
+msgstr "Beschreiben Sie dieses Video detailliert, aber praegnant. Erfassen Sie so viele Informationen wie moeglich und wenn wichtiger Text im Video vorhanden ist, lesen Sie ihn vor."
+
 #. Translators: Error message when no API key is configured
 msgid "No Gemini API key configured. Please add your API key in the settings."
 msgstr "Kein Gemini API-Schluessel konfiguriert. Bitte fuegen Sie Ihren API-Schluessel in den Einstellungen hinzu."

@@ -32,6 +32,7 @@ from .consts import (
     SND_CHAT_RESPONSE_PENDING,
     SND_CHAT_RESPONSE_RECEIVED,
 )
+from .configspec import get_safe_conf
 from .resultevent import EVT_RESULT, ResultEvent
 from .mdfilter import filter_markdown
 
@@ -191,10 +192,11 @@ class GeminiDialog(wx.Dialog):
         # Track current prompt type for saving (screenshot, object, or None)
         self._current_prompt_type: str | None = None
 
-        addToSession = self
-
         self._init_ui()
         self._bind_events()
+
+        # Only expose the dialog globally after it's fully initialized
+        addToSession = self
 
         self.SetSize((800, 600))
         self.CenterOnParent()
@@ -223,7 +225,7 @@ class GeminiDialog(wx.Dialog):
         self._model_choice = wx.Choice(panel, choices=model_choices)
 
         # Set default model
-        current_model = self._conf["GemVDA"]["model"]
+        current_model = get_safe_conf()["model"]
         for i, m in enumerate(GEMINI_MODELS):
             if m.id == current_model:
                 self._model_choice.SetSelection(i)
@@ -246,8 +248,8 @@ class GeminiDialog(wx.Dialog):
         )
         # If saveSystemPrompt is enabled, use the saved value (even if blank)
         # Otherwise, use the default system prompt
-        if self._conf["GemVDA"]["saveSystemPrompt"]:
-            self._system_text.SetValue(self._conf["GemVDA"]["customSystemPrompt"])
+        if get_safe_conf()["saveSystemPrompt"]:
+            self._system_text.SetValue(get_safe_conf()["customSystemPrompt"])
         else:
             self._system_text.SetValue(DEFAULT_SYSTEM_PROMPT)
         main_sizer.Add(self._system_text, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
@@ -336,7 +338,7 @@ class GeminiDialog(wx.Dialog):
 
         # Escape to close (if not blocked)
         if key == wx.WXK_ESCAPE:
-            if not self._conf["GemVDA"]["blockEscapeKey"]:
+            if not get_safe_conf()["blockEscapeKey"]:
                 self._on_close(None)
                 return
 
@@ -379,7 +381,7 @@ class GeminiDialog(wx.Dialog):
     def _format_message(self, block: HistoryBlock) -> str:
         """Format a single message for reading or copying."""
         text = block.text or ""
-        if self._conf["GemVDA"]["filterMarkdown"]:
+        if get_safe_conf()["filterMarkdown"]:
             text = filter_markdown(text)
 
         # Translators: Label for user messages when reading history
@@ -437,7 +439,7 @@ class GeminiDialog(wx.Dialog):
         block = reversed_history[index]
         # For copying, just copy the text content without the role label
         text = block.text or ""
-        if self._conf["GemVDA"]["filterMarkdown"]:
+        if get_safe_conf()["filterMarkdown"]:
             text = filter_markdown(text)
 
         if text.strip():
@@ -477,7 +479,7 @@ class GeminiDialog(wx.Dialog):
         system_prompt = self._system_text.GetValue().strip()
 
         # Build conversation history
-        if self._conf["GemVDA"]["conversationMode"]:
+        if get_safe_conf()["conversationMode"]:
             for block in self._history:
                 content_parts = []
                 if block.text:
@@ -545,9 +547,9 @@ class GeminiDialog(wx.Dialog):
         # Save prompt if we have a prompt type (screenshot or object)
         if self._current_prompt_type and prompt:
             if self._current_prompt_type == "screenshot":
-                self._conf["GemVDA"]["screenshotPrompt"] = prompt
+                get_safe_conf()["screenshotPrompt"] = prompt
             elif self._current_prompt_type == "object":
-                self._conf["GemVDA"]["objectPrompt"] = prompt
+                get_safe_conf()["objectPrompt"] = prompt
             # Reset prompt type after saving
             self._current_prompt_type = None
             # Save config
@@ -566,16 +568,16 @@ class GeminiDialog(wx.Dialog):
         self._send_btn.Disable()
 
         # Play send sound
-        if self._conf["GemVDA"]["feedback"]["soundRequestSent"]:
+        if get_safe_conf()["feedback"]["soundRequestSent"]:
             self._play_sound(SND_CHAT_REQUEST_SENT)
 
         # Create generation config
         gen_config = types.GenerateContentConfig(
             system_instruction=system_prompt if system_prompt else None,
-            temperature=self._conf["GemVDA"]["temperature"],
-            top_p=self._conf["GemVDA"]["topP"],
-            top_k=self._conf["GemVDA"]["topK"],
-            max_output_tokens=self._conf["GemVDA"]["maxOutputTokens"],
+            temperature=get_safe_conf()["temperature"],
+            top_p=get_safe_conf()["topP"],
+            top_k=get_safe_conf()["topK"],
+            max_output_tokens=get_safe_conf()["maxOutputTokens"],
         )
 
         # Start completion thread
@@ -585,12 +587,12 @@ class GeminiDialog(wx.Dialog):
             model_id=model.id,
             contents=contents,
             config_obj=gen_config,
-            stream=self._conf["GemVDA"]["stream"],
+            stream=get_safe_conf()["stream"],
         )
         self._current_thread.start()
 
         # Start pending sound
-        if self._conf["GemVDA"]["feedback"]["soundResponsePending"]:
+        if get_safe_conf()["feedback"]["soundResponsePending"]:
             self._play_sound(SND_CHAT_RESPONSE_PENDING, loop=True)
 
     def _encode_image(self, path: str) -> dict | None:
@@ -638,11 +640,11 @@ class GeminiDialog(wx.Dialog):
             self._update_history_display()
 
             # Speak streaming chunk immediately
-            if self._conf["GemVDA"]["feedback"]["speechResponseReceived"]:
+            if get_safe_conf()["feedback"]["speechResponseReceived"]:
                 chunk_text = data["chunk"]
                 if chunk_text:
                     # Apply markdown filter if enabled
-                    if self._conf["GemVDA"]["filterMarkdown"]:
+                    if get_safe_conf()["filterMarkdown"]:
                         chunk_text = filter_markdown(chunk_text)
                     if chunk_text.strip():  # Only speak non-empty chunks
                         speech.speakText(chunk_text)
@@ -668,24 +670,24 @@ class GeminiDialog(wx.Dialog):
             self._send_btn.Enable()
 
             # Play received sound
-            if self._conf["GemVDA"]["feedback"]["soundResponseReceived"]:
+            if get_safe_conf()["feedback"]["soundResponseReceived"]:
                 self._play_sound(SND_CHAT_RESPONSE_RECEIVED)
 
             # Announce response (only if not streaming, since we already spoke chunks)
-            if self._conf["GemVDA"]["feedback"]["speechResponseReceived"] and not was_streaming:
+            if get_safe_conf()["feedback"]["speechResponseReceived"] and not was_streaming:
                 response_text = self._history[-1].text if self._history else ""
                 if response_text:
                     # Apply markdown filter if enabled
-                    if self._conf["GemVDA"]["filterMarkdown"]:
+                    if get_safe_conf()["filterMarkdown"]:
                         response_text = filter_markdown(response_text)
                     speech.speakText(response_text[:500])  # Limit initial speech
 
             # Update braille
-            if self._conf["GemVDA"]["feedback"]["brailleAutoFocus"]:
+            if get_safe_conf()["feedback"]["brailleAutoFocus"]:
                 response_text = self._history[-1].text if self._history else ""
                 if response_text:
                     # Apply markdown filter if enabled
-                    if self._conf["GemVDA"]["filterMarkdown"]:
+                    if get_safe_conf()["filterMarkdown"]:
                         response_text = filter_markdown(response_text)
                     braille.handler.message(response_text[:100])
 
@@ -701,7 +703,7 @@ class GeminiDialog(wx.Dialog):
             text = block.text or ""
 
             # Apply markdown filter to model responses if enabled
-            if block.role == "model" and self._conf["GemVDA"]["filterMarkdown"]:
+            if block.role == "model" and get_safe_conf()["filterMarkdown"]:
                 text = filter_markdown(text)
 
             # Build attachment indicators
@@ -865,8 +867,8 @@ class GeminiDialog(wx.Dialog):
         winsound.PlaySound(None, winsound.SND_PURGE)
 
         # Save system prompt if enabled
-        if self._conf["GemVDA"]["saveSystemPrompt"]:
-            self._conf["GemVDA"]["customSystemPrompt"] = self._system_text.GetValue()
+        if get_safe_conf()["saveSystemPrompt"]:
+            get_safe_conf()["customSystemPrompt"] = self._system_text.GetValue()
             # Trigger config save to persist changes
             try:
                 import config
@@ -904,10 +906,10 @@ class GeminiDialog(wx.Dialog):
         # Pre-fill prompt if empty and we have a prompt type
         if prompt_type and not self._prompt_text.GetValue().strip():
             if prompt_type == "screenshot":
-                saved_prompt = self._conf["GemVDA"]["screenshotPrompt"]
+                saved_prompt = get_safe_conf()["screenshotPrompt"]
                 default_prompt = DEFAULT_SCREENSHOT_PROMPT
             elif prompt_type == "object":
-                saved_prompt = self._conf["GemVDA"]["objectPrompt"]
+                saved_prompt = get_safe_conf()["objectPrompt"]
                 default_prompt = DEFAULT_OBJECT_PROMPT
             else:
                 saved_prompt = ""

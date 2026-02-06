@@ -27,7 +27,7 @@ from .consts import (
     DEFAULT_MODEL,
     DEFAULT_SYSTEM_PROMPT,
 )
-from .configspec import confSpecs
+from .configspec import confSpecs, get_safe_conf
 from . import apikeymanager
 from . import videocapture
 
@@ -178,7 +178,7 @@ class GeminiSettingsPanel(SettingsPanel):
             wx.Choice,
             choices=model_choices,
         )
-        current_model = config.conf["GemVDA"]["model"]
+        current_model = get_safe_conf()["model"]
         for i, m in enumerate(GEMINI_MODELS):
             if m.id == current_model:
                 self._model_choice.SetSelection(i)
@@ -192,7 +192,7 @@ class GeminiSettingsPanel(SettingsPanel):
             min=0,
             max=200,
         )
-        self._temp_spinner.SetValue(int(config.conf["GemVDA"]["temperature"] * 100))
+        self._temp_spinner.SetValue(int(get_safe_conf()["temperature"] * 100))
 
         # Max output tokens
         # Translators: Label for max output tokens setting
@@ -202,42 +202,54 @@ class GeminiSettingsPanel(SettingsPanel):
             min=1,
             max=65536,
         )
-        self._max_tokens_spinner.SetValue(config.conf["GemVDA"]["maxOutputTokens"])
+        self._max_tokens_spinner.SetValue(get_safe_conf()["maxOutputTokens"])
 
         # Streaming
         # Translators: Checkbox for streaming responses
         self._stream_checkbox = sHelper.addItem(
             wx.CheckBox(self, label=_("&Stream responses"))
         )
-        self._stream_checkbox.SetValue(config.conf["GemVDA"]["stream"])
+        self._stream_checkbox.SetValue(get_safe_conf()["stream"])
 
         # Conversation mode
         # Translators: Checkbox for conversation mode
         self._convo_checkbox = sHelper.addItem(
             wx.CheckBox(self, label=_("&Conversation mode (include history)"))
         )
-        self._convo_checkbox.SetValue(config.conf["GemVDA"]["conversationMode"])
+        self._convo_checkbox.SetValue(get_safe_conf()["conversationMode"])
 
         # Save system prompt
         # Translators: Checkbox for saving system prompt
         self._save_prompt_checkbox = sHelper.addItem(
             wx.CheckBox(self, label=_("&Remember system prompt"))
         )
-        self._save_prompt_checkbox.SetValue(config.conf["GemVDA"]["saveSystemPrompt"])
+        self._save_prompt_checkbox.SetValue(get_safe_conf()["saveSystemPrompt"])
 
         # Block escape
         # Translators: Checkbox for blocking escape key
         self._block_escape_checkbox = sHelper.addItem(
             wx.CheckBox(self, label=_("&Block Escape key in dialog"))
         )
-        self._block_escape_checkbox.SetValue(config.conf["GemVDA"]["blockEscapeKey"])
+        self._block_escape_checkbox.SetValue(get_safe_conf()["blockEscapeKey"])
 
         # Filter markdown
         # Translators: Checkbox for filtering markdown from responses
         self._filter_markdown_checkbox = sHelper.addItem(
             wx.CheckBox(self, label=_("&Filter markdown from responses"))
         )
-        self._filter_markdown_checkbox.SetValue(config.conf["GemVDA"]["filterMarkdown"])
+        self._filter_markdown_checkbox.SetValue(get_safe_conf()["filterMarkdown"])
+
+        # Video analysis prompt
+        # Translators: Label for video analysis prompt text field
+        video_prompt_label = wx.StaticText(self, label=_("&Video analysis prompt:"))
+        sHelper.addItem(video_prompt_label)
+        self._video_prompt_text = sHelper.addItem(
+            wx.TextCtrl(self, style=wx.TE_MULTILINE, size=(-1, 75))
+        )
+        # Translators: Default video analysis prompt sent to the AI model
+        self._default_video_prompt = _("Describe this video in detail, but concise. Get as much information as you can and if there is any important text in the video read it.")
+        saved_prompt = get_safe_conf()["videoPrompt"]
+        self._video_prompt_text.SetValue(saved_prompt if saved_prompt else self._default_video_prompt)
 
         # Feedback section
         # Translators: Label for feedback settings group
@@ -252,7 +264,7 @@ class GeminiSettingsPanel(SettingsPanel):
             wx.CheckBox(feedback_box, label=_("Play sound when request &sent"))
         )
         self._snd_sent_checkbox.SetValue(
-            config.conf["GemVDA"]["feedback"]["soundRequestSent"]
+            get_safe_conf()["feedback"]["soundRequestSent"]
         )
 
         # Translators: Checkbox for response pending sound
@@ -260,7 +272,7 @@ class GeminiSettingsPanel(SettingsPanel):
             wx.CheckBox(feedback_box, label=_("Play sound while &waiting"))
         )
         self._snd_pending_checkbox.SetValue(
-            config.conf["GemVDA"]["feedback"]["soundResponsePending"]
+            get_safe_conf()["feedback"]["soundResponsePending"]
         )
 
         # Translators: Checkbox for response received sound
@@ -268,7 +280,7 @@ class GeminiSettingsPanel(SettingsPanel):
             wx.CheckBox(feedback_box, label=_("Play sound when response &received"))
         )
         self._snd_received_checkbox.SetValue(
-            config.conf["GemVDA"]["feedback"]["soundResponseReceived"]
+            get_safe_conf()["feedback"]["soundResponseReceived"]
         )
 
         sHelper.addItem(feedback_group)
@@ -283,25 +295,32 @@ class GeminiSettingsPanel(SettingsPanel):
         # Model
         model_idx = self._model_choice.GetSelection()
         if model_idx >= 0:
-            config.conf["GemVDA"]["model"] = GEMINI_MODELS[model_idx].id
+            get_safe_conf()["model"] = GEMINI_MODELS[model_idx].id
 
         # Parameters
-        config.conf["GemVDA"]["temperature"] = self._temp_spinner.GetValue() / 100.0
-        config.conf["GemVDA"]["maxOutputTokens"] = self._max_tokens_spinner.GetValue()
-        config.conf["GemVDA"]["stream"] = self._stream_checkbox.GetValue()
-        config.conf["GemVDA"]["conversationMode"] = self._convo_checkbox.GetValue()
-        config.conf["GemVDA"]["saveSystemPrompt"] = self._save_prompt_checkbox.GetValue()
-        config.conf["GemVDA"]["blockEscapeKey"] = self._block_escape_checkbox.GetValue()
-        config.conf["GemVDA"]["filterMarkdown"] = self._filter_markdown_checkbox.GetValue()
+        get_safe_conf()["temperature"] = self._temp_spinner.GetValue() / 100.0
+        get_safe_conf()["maxOutputTokens"] = self._max_tokens_spinner.GetValue()
+        get_safe_conf()["stream"] = self._stream_checkbox.GetValue()
+        get_safe_conf()["conversationMode"] = self._convo_checkbox.GetValue()
+        get_safe_conf()["saveSystemPrompt"] = self._save_prompt_checkbox.GetValue()
+        get_safe_conf()["blockEscapeKey"] = self._block_escape_checkbox.GetValue()
+        get_safe_conf()["filterMarkdown"] = self._filter_markdown_checkbox.GetValue()
+
+        # Video prompt - store empty string if user left the localized default unchanged
+        video_prompt_val = self._video_prompt_text.GetValue().strip()
+        if video_prompt_val == self._default_video_prompt:
+            get_safe_conf()["videoPrompt"] = ""
+        else:
+            get_safe_conf()["videoPrompt"] = video_prompt_val
 
         # Feedback
-        config.conf["GemVDA"]["feedback"]["soundRequestSent"] = (
+        get_safe_conf()["feedback"]["soundRequestSent"] = (
             self._snd_sent_checkbox.GetValue()
         )
-        config.conf["GemVDA"]["feedback"]["soundResponsePending"] = (
+        get_safe_conf()["feedback"]["soundResponsePending"] = (
             self._snd_pending_checkbox.GetValue()
         )
-        config.conf["GemVDA"]["feedback"]["soundResponseReceived"] = (
+        get_safe_conf()["feedback"]["soundResponseReceived"] = (
             self._snd_received_checkbox.GetValue()
         )
 
@@ -699,7 +718,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                 wx.CallAfter(ui.message, _("Analyzing video..."))
 
                 # Get model from config
-                model_id = config.conf["GemVDA"]["model"]
+                model_id = get_safe_conf()["model"]
 
                 # Create content with video and prompt
                 response = client.models.generate_content(
@@ -712,7 +731,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                                     file_uri=uploaded_file.uri,
                                     mime_type="video/mp4",
                                 ),
-                                types.Part(text=videocapture.VIDEO_ANALYSIS_PROMPT),
+                                types.Part(text=get_safe_conf()["videoPrompt"] or _("Describe this video in detail, but concise. Get as much information as you can and if there is any important text in the video read it.")),
                             ],
                         )
                     ],
@@ -722,7 +741,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                 result_text = response.text if response.text else _("No response from AI")
 
                 # Apply markdown filter if enabled
-                if config.conf["GemVDA"]["filterMarkdown"]:
+                if get_safe_conf()["filterMarkdown"]:
                     from .mdfilter import filter_markdown
                     result_text = filter_markdown(result_text)
 

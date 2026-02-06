@@ -232,6 +232,14 @@ msgstr "Capture de l'objet..."
 msgid "Failed to capture object"
 msgstr "Echec de la capture de l'objet"
 
+#. Translators: Label for video analysis prompt text field
+msgid "&Video analysis prompt:"
+msgstr "Prompt d'analyse &video:"
+
+#. Translators: Default video analysis prompt sent to the AI model
+msgid "Describe this video in detail, but concise. Get as much information as you can and if there is any important text in the video read it."
+msgstr "Decrivez cette video en detail, mais de maniere concise. Obtenez autant d'informations que possible et s'il y a du texte important dans la video, lisez-le."
+
 #. Translators: Error message when no API key is configured
 msgid "No Gemini API key configured. Please add your API key in the settings."
 msgstr "Aucune cle API Gemini configuree. Veuillez ajouter votre cle API dans les parametres."

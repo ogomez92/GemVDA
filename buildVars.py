@@ -18,13 +18,13 @@ addon_info = AddonInfo(
 	# Add-on summary/title, usually the user visible name of the add-on
 	# Translators: Summary/title for this add-on
 	# to be shown on installation and add-on information found in add-on store
-	addon_summary=_("Google Gemini AI"),
+	addon_summary=_("GemVDA (Google Gemini AI NVDA)"),
 	# Add-on description
 	# Translators: Long description to be shown for this add-on on add-on information from add-on store
 	addon_description=_("""Comprehensive Google Gemini AI capabilities integrated into NVDA.
 Supports Gemini 3, Gemini 2.5 Pro, Flash, and other models for chat, image description, and more."""),
 	# version
-	addon_version="1.0.0",
+	addon_version="1.5.0",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
 	addon_changelog=_("""Initial release with Gemini AI integration."""),

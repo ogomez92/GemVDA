@@ -1,1 +1,3 @@
-Use this file to explain what has changed in your add-on since the previous release. This will be included automatically in the release description when used with GitHub actions.
+- Update Dependencies.
+- Make video prompt configurable
+- Fix an issue that could freeze the Gemini dialog if not configured correctly.

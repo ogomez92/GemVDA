@@ -287,3 +287,31 @@ msgstr "Falha ao iniciar gravacao"
 #. Translators: Error during video analysis
 msgid "Video analysis failed: {error}"
 msgstr "Analise de video falhou: {error}"
+
+#. Translators: Description for summarize selection script
+msgid "Summarize selected text using Gemini"
+msgstr "Resumir texto selecionado usando Gemini"
+
+#. Translators: Label for summarize selection prompt text field
+msgid "S&ummarize selection prompt:"
+msgstr "Prompt de res&umo de selecao:"
+
+#. Translators: Default prompt used when summarizing selected text with AI
+msgid "Summarize the key points of the following text in a clear and concise manner:"
+msgstr "Resuma os pontos principais do texto a seguir de forma clara e concisa:"
+
+#. Translators: Error when no text is selected for summarization
+msgid "No text selected"
+msgstr "Nenhum texto selecionado"
+
+#. Translators: Message while summarizing text
+msgid "Summarizing..."
+msgstr "Resumindo..."
+
+#. Translators: Error during text summarization
+msgid "Summarization failed: {error}"
+msgstr "Falha ao resumir: {error}"
+
+#. Translators: Message when AI returns no response
+msgid "No response from AI"
+msgstr "Sem resposta da IA"

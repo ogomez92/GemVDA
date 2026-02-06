@@ -287,3 +287,31 @@ msgstr "Aufnahme starten fehlgeschlagen"
 #. Translators: Error during video analysis
 msgid "Video analysis failed: {error}"
 msgstr "Videoanalyse fehlgeschlagen: {error}"
+
+#. Translators: Description for summarize selection script
+msgid "Summarize selected text using Gemini"
+msgstr "Ausgewaehlten Text mit Gemini zusammenfassen"
+
+#. Translators: Label for summarize selection prompt text field
+msgid "S&ummarize selection prompt:"
+msgstr "Z&usammenfassungs-Prompt:"
+
+#. Translators: Default prompt used when summarizing selected text with AI
+msgid "Summarize the key points of the following text in a clear and concise manner:"
+msgstr "Fassen Sie die wichtigsten Punkte des folgenden Textes klar und praegnant zusammen:"
+
+#. Translators: Error when no text is selected for summarization
+msgid "No text selected"
+msgstr "Kein Text ausgewaehlt"
+
+#. Translators: Message while summarizing text
+msgid "Summarizing..."
+msgstr "Wird zusammengefasst..."
+
+#. Translators: Error during text summarization
+msgid "Summarization failed: {error}"
+msgstr "Zusammenfassung fehlgeschlagen: {error}"
+
+#. Translators: Message when AI returns no response
+msgid "No response from AI"
+msgstr "Keine Antwort von der KI"

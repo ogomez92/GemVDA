@@ -32,6 +32,9 @@ confSpecs = {
     # Video analysis prompt (empty = use localized default)
     "videoPrompt": 'string(default="")',
 
+    # Summarize selection prompt (empty = use localized default)
+    "summarizePrompt": 'string(default="")',
+
     # Image settings
     "images": {
         "resize": "boolean(default=True)",
@@ -74,6 +77,17 @@ def _parse_default(spec_string):
     return None
 
 
+def _parse_type(spec_string):
+    """Extract the type coercion function from a configobj spec string."""
+    if spec_string.startswith("boolean"):
+        return lambda v: v if isinstance(v, bool) else str(v).lower() == "true"
+    if spec_string.startswith("integer"):
+        return lambda v: v if isinstance(v, int) else int(v)
+    if spec_string.startswith("float"):
+        return lambda v: v if isinstance(v, float) else float(v)
+    return None  # strings need no coercion
+
+
 def _build_defaults(specs):
     """Build a nested dict of default values from confSpecs."""
     result = {}
@@ -85,15 +99,28 @@ def _build_defaults(specs):
     return result
 
 
+def _build_types(specs):
+    """Build a nested dict of type coercion functions from confSpecs."""
+    result = {}
+    for key, value in specs.items():
+        if isinstance(value, dict):
+            result[key] = _build_types(value)
+        else:
+            result[key] = _parse_type(value)
+    return result
+
+
 _DEFAULTS = _build_defaults(confSpecs)
+_TYPES = _build_types(confSpecs)
 
 
 class _SafeSection:
     """Wraps an NVDA config section, falling back to confSpec defaults on KeyError."""
 
-    def __init__(self, conf_section, defaults):
+    def __init__(self, conf_section, defaults, types=None):
         self._conf = conf_section
         self._defaults = defaults
+        self._types = types or {}
 
     def __getitem__(self, key):
         try:
@@ -104,9 +131,17 @@ class _SafeSection:
             val = self._defaults[key]
         # Wrap sub-sections so nested access is also safe
         sub_defaults = self._defaults.get(key, {})
+        sub_types = self._types.get(key, {})
         if isinstance(sub_defaults, dict) and sub_defaults:
             if not isinstance(val, (str, bytes, bool, int, float, type(None))):
-                return _SafeSection(val, sub_defaults)
+                return _SafeSection(val, sub_defaults, sub_types)
+        # Coerce to the expected type (configobj returns strings from ini)
+        coerce = self._types.get(key)
+        if coerce is not None and val is not None:
+            try:
+                val = coerce(val)
+            except (ValueError, TypeError):
+                val = self._defaults.get(key, val)
         return val
 
     def __setitem__(self, key, value):
@@ -136,5 +171,5 @@ def get_safe_conf():
             '__getitem__': lambda s, k: (_ for _ in ()).throw(KeyError(k)),
             '__setitem__': lambda s, k, v: None,
             '__contains__': lambda s, k: False,
-        })(), _DEFAULTS)
-    return _SafeSection(section, _DEFAULTS)
+        })(), _DEFAULTS, _TYPES)
+    return _SafeSection(section, _DEFAULTS, _TYPES)

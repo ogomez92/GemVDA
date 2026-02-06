@@ -1,3 +1,5 @@
 - Update Dependencies.
 - Make video prompt configurable
 - Fix an issue that could freeze the Gemini dialog if not configured correctly.
+- add summarize selection with configurable prompt (NVDA Shift U)
+- Update documentation

@@ -11,6 +11,7 @@ import config
 import gui
 import ui
 import api
+import textInfos
 from scriptHandler import script
 from gui.settingsDialogs import SettingsPanel, NVDASettingsDialog
 from gui import guiHelper, nvdaControls
@@ -251,6 +252,18 @@ class GeminiSettingsPanel(SettingsPanel):
         saved_prompt = get_safe_conf()["videoPrompt"]
         self._video_prompt_text.SetValue(saved_prompt if saved_prompt else self._default_video_prompt)
 
+        # Summarize selection prompt
+        # Translators: Label for summarize selection prompt text field
+        summarize_prompt_label = wx.StaticText(self, label=_("S&ummarize selection prompt:"))
+        sHelper.addItem(summarize_prompt_label)
+        self._summarize_prompt_text = sHelper.addItem(
+            wx.TextCtrl(self, style=wx.TE_MULTILINE, size=(-1, 75))
+        )
+        # Translators: Default prompt used when summarizing selected text with AI
+        self._default_summarize_prompt = _("Summarize the key points of the following text in a clear and concise manner:")
+        saved_summarize_prompt = get_safe_conf()["summarizePrompt"]
+        self._summarize_prompt_text.SetValue(saved_summarize_prompt if saved_summarize_prompt else self._default_summarize_prompt)
+
         # Feedback section
         # Translators: Label for feedback settings group
         feedback_group = wx.StaticBoxSizer(
@@ -312,6 +325,13 @@ class GeminiSettingsPanel(SettingsPanel):
             get_safe_conf()["videoPrompt"] = ""
         else:
             get_safe_conf()["videoPrompt"] = video_prompt_val
+
+        # Summarize prompt - store empty string if user left the localized default unchanged
+        summarize_prompt_val = self._summarize_prompt_text.GetValue().strip()
+        if summarize_prompt_val == self._default_summarize_prompt:
+            get_safe_conf()["summarizePrompt"] = ""
+        else:
+            get_safe_conf()["summarizePrompt"] = summarize_prompt_val
 
         # Feedback
         get_safe_conf()["feedback"]["soundRequestSent"] = (
@@ -809,3 +829,82 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             else:
                 # Translators: Error when video recording fails to start
                 ui.message(_("Failed to start recording"))
+
+    @script(
+        # Translators: Description for summarize selection script
+        description=_("Summarize selected text using Gemini"),
+        gesture="kb:nvda+shift+u",
+    )
+    def script_summarizeSelection(self, gesture):
+        if not GENAI_AVAILABLE:
+            ui.message(_("Google GenAI library not installed."))
+            return
+
+        client = self._get_client()
+        if not client:
+            ui.message(_(NO_API_KEY_MSG))
+            return
+
+        # Get selected text via treeInterceptor (browse mode) or focus object
+        obj = api.getFocusObject()
+        treeInterceptor = obj.treeInterceptor
+        try:
+            if treeInterceptor and hasattr(treeInterceptor, "makeTextInfo"):
+                info = treeInterceptor.makeTextInfo(textInfos.POSITION_SELECTION)
+            else:
+                info = obj.makeTextInfo(textInfos.POSITION_SELECTION)
+            selected_text = info.text
+        except (RuntimeError, NotImplementedError):
+            selected_text = None
+
+        if not selected_text or not selected_text.strip():
+            # Translators: Error when no text is selected for summarization
+            ui.message(_("No text selected"))
+            return
+
+        # Translators: Message while summarizing text
+        ui.message(_("Summarizing..."))
+
+        import threading
+
+        def do_summarize():
+            try:
+                from google.genai import types
+
+                # Get the summarize prompt from config or use localized default
+                prompt = get_safe_conf()["summarizePrompt"]
+                if not prompt:
+                    # Translators: Default prompt used when summarizing selected text with AI
+                    prompt = _("Summarize the key points of the following text in a clear and concise manner:")
+
+                full_prompt = f"{prompt}\n\n{selected_text}"
+
+                model_id = get_safe_conf()["model"]
+                response = client.models.generate_content(
+                    model=model_id,
+                    contents=[
+                        types.Content(
+                            role="user",
+                            parts=[types.Part(text=full_prompt)],
+                        )
+                    ],
+                )
+
+                result_text = response.text if response.text else _("No response from AI")
+
+                if get_safe_conf()["filterMarkdown"]:
+                    from .mdfilter import filter_markdown
+                    result_text = filter_markdown(result_text)
+
+                wx.CallAfter(ui.message, result_text)
+
+            except Exception as e:
+                log.error(f"Summarize selection failed: {e}", exc_info=True)
+                # Translators: Error during text summarization
+                wx.CallAfter(
+                    ui.message,
+                    _("Summarization failed: {error}").format(error=str(e)),
+                )
+
+        thread = threading.Thread(target=do_summarize, daemon=True)
+        thread.start()

@@ -13,6 +13,7 @@ GemVDA integra as capacidades do Google Gemini AI diretamente no NVDA, fornecend
 * **Anexar imagens**: Anexe imagens de arquivos para descricao por IA
 * **Historico de conversa**: Mantenha contexto atraves de multiplas mensagens
 * **Multiplos modelos**: Escolha entre varios modelos Gemini baseado nas suas necessidades
+* **Resumir selecao**: Selecione texto e o Gemini resumira os pontos principais
 * **Configuracoes personalizaveis**: Configure temperatura, tokens, streaming e mais
 
 ## Requisitos
@@ -46,6 +47,7 @@ GemVDA integra as capacidades do Google Gemini AI diretamente no NVDA, fornecend
 | NVDA+Shift+E | Descrever a tela inteira |
 | NVDA+Shift+O | Descrever o objeto do navegador |
 | NVDA+V | Iniciar/parar gravacao de video para analise |
+| NVDA+Shift+U | Resumir texto selecionado |
 
 ## Usando o dialogo do Gemini
 
@@ -125,6 +127,10 @@ Util para:
 * Entender fluxos de trabalho visuais
 * Obter descricoes passo a passo
 * Analisar conteudo dinamico
+
+### Resumir selecao (NVDA+Shift+U)
+
+Selecione texto em qualquer aplicacao e o Gemini resumira os pontos principais. Funciona no modo de navegacao (navegadores web, leitores de PDF) e em campos de texto normais. O prompt de resumo pode ser personalizado nas configuracoes do complemento.
 
 ## Solucao de problemas
 

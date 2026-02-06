@@ -5,7 +5,14 @@
       "Bash(pip install:*)",
       "Bash(dir:*)",
       "Bash(msgfmt:*)",
-      "Bash(scons)"
+      "Bash(scons)",
+      "Bash(python -c:*)",
+      "Bash(python -m py_compile:*)",
+      "Bash(where:*)",
+      "Bash(python:*)",
+      "Bash(for lang in en es de fr it pt)",
+      "Bash(do msgfmt -o \"T:/code/nvda/GemVDA/addon/locale/$lang/LC_MESSAGES/nvda.mo\" \"T:/code/nvda/GemVDA/addon/locale/$lang/LC_MESSAGES/nvda.po\")",
+      "Bash(done)"
     ]
   }
 }

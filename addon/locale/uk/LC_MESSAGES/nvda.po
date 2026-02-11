@@ -1,0 +1,518 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
+"POT-Creation-Date: 2026-02-09 11:42+0200\n"
+"PO-Revision-Date: 2026-02-10 23:02+0200\n"
+"Last-Translator: Volodymyr Pyrih <vp88.mobile@gmail.com>\n"
+"Language-Team: \n"
+"Language: uk\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.8\n"
+"X-Poedit-Basepath: .\n"
+
+#. Translators: Title of the main Gemini dialog
+#. Translators: Title of settings panel
+#. Translators: Category for input gestures
+#: addon\globalPlugins\GemVDA\maindialog.py:169
+#: addon\globalPlugins\GemVDA\__init__.py:162
+#: addon\globalPlugins\GemVDA\__init__.py:352
+msgid "Gemini AI"
+msgstr "Gemini AI"
+
+#. Translators: Label for model selection dropdown
+#: addon\globalPlugins\GemVDA\maindialog.py:221
+msgid "M&odel:"
+msgstr "&Модель:"
+
+#. System prompt (collapsible)
+#. Translators: Label for system prompt section
+#: addon\globalPlugins\GemVDA\maindialog.py:241
+msgid "S&ystem prompt:"
+msgstr "&Системна підказка:"
+
+#. Messages display
+#. Translators: Label for conversation messages
+#: addon\globalPlugins\GemVDA\maindialog.py:259
+msgid "&Messages:"
+msgstr "&Повідомлення:"
+
+#. Prompt input
+#. Translators: Label for user prompt input
+#: addon\globalPlugins\GemVDA\maindialog.py:270
+msgid "&Prompt:"
+msgstr "&Запит:"
+
+#. Translators: Button to send message
+#: addon\globalPlugins\GemVDA\maindialog.py:288
+msgid "&Send"
+msgstr "&Надіслати"
+
+#. Translators: Button to attach image
+#: addon\globalPlugins\GemVDA\maindialog.py:293
+msgid "Attach &Image..."
+msgstr "Додати &зображення..."
+
+#. Translators: Button to attach video
+#: addon\globalPlugins\GemVDA\maindialog.py:297
+msgid "Attach &Video..."
+msgstr "Додати &відео..."
+
+#. Translators: Button to clear conversation
+#: addon\globalPlugins\GemVDA\maindialog.py:301
+msgid "&Clear"
+msgstr "&Очистити"
+
+#. Translators: Button to copy last response
+#: addon\globalPlugins\GemVDA\maindialog.py:305
+msgid "C&opy Response"
+msgstr "С&копіювати відповідь"
+
+#. Translators: Button to close dialog
+#: addon\globalPlugins\GemVDA\maindialog.py:311
+msgid "Close"
+msgstr "Закрити"
+
+#. Translators: Label for user messages when reading history
+#. Translators: Label for Gemini messages when reading history
+#. Translators: Label for user messages in history
+#: addon\globalPlugins\GemVDA\maindialog.py:389
+#: addon\globalPlugins\GemVDA\maindialog.py:702
+msgid "You"
+msgstr "Ви"
+
+#: addon\globalPlugins\GemVDA\maindialog.py:389
+#: addon\globalPlugins\GemVDA\maindialog.py:702
+msgid "Gemini"
+msgstr "Gemini"
+
+#: addon\globalPlugins\GemVDA\maindialog.py:390
+#, python-brace-format
+msgid "{role}: {text}"
+msgstr "{role}: {text}"
+
+#. Translators: Message when there are no messages in history
+#: addon\globalPlugins\GemVDA\maindialog.py:396
+msgid "No messages in history"
+msgstr "Немає повідомлень в історії"
+
+#. Translators: Message when requested message doesn't exist
+#. Translators: Message when requested message for copying doesn't exist
+#: addon\globalPlugins\GemVDA\maindialog.py:404
+#: addon\globalPlugins\GemVDA\maindialog.py:433
+#, python-brace-format
+msgid "Message {num} not available. Only {total} message(s) in history."
+msgstr "Повідомлення {num} недоступне. В історії є тільки {total} повідомлень."
+
+#. Translators: Message when the selected message is empty
+#: addon\globalPlugins\GemVDA\maindialog.py:417
+#, python-brace-format
+msgid "Message {num} is empty"
+msgstr "Повідомлення {num} порожнє"
+
+#. Translators: Message when there are no messages to copy
+#: addon\globalPlugins\GemVDA\maindialog.py:425
+msgid "No messages to copy"
+msgstr "Немає повідомлень для копіювання"
+
+#. Translators: Message when a message is copied to clipboard
+#: addon\globalPlugins\GemVDA\maindialog.py:448
+#, python-brace-format
+msgid "Message {num} copied to clipboard"
+msgstr "Повідомлення {num} скопійовано в буфер обміну"
+
+#. Translators: Message when the selected message is empty and cannot be copied
+#: addon\globalPlugins\GemVDA\maindialog.py:451
+#, python-brace-format
+msgid "Message {num} is empty, nothing to copy"
+msgstr "Повідомлення {num} порожнє, нема що копіювати"
+
+#. Translators: Message while uploading videos
+#: addon\globalPlugins\GemVDA\maindialog.py:463
+msgid "Uploading videos..."
+msgstr "Відвантаження відео..."
+
+#. Translators: Error message prefix
+#: addon\globalPlugins\GemVDA\maindialog.py:628
+#, python-brace-format
+msgid "Error: {error}"
+msgstr "Помилка: {error}"
+
+#. Translators: Indicator for attached images
+#. Translators: Label showing number of attached images
+#: addon\globalPlugins\GemVDA\maindialog.py:713
+#: addon\globalPlugins\GemVDA\maindialog.py:767
+#, python-brace-format
+msgid "{count} image(s)"
+msgstr "{count} зображень"
+
+#. Translators: Indicator for attached videos
+#. Translators: Label showing number of attached videos
+#: addon\globalPlugins\GemVDA\maindialog.py:716
+#: addon\globalPlugins\GemVDA\maindialog.py:770
+#, python-brace-format
+msgid "{count} video(s)"
+msgstr "{count} відео"
+
+#: addon\globalPlugins\GemVDA\maindialog.py:733
+msgid "Select Image"
+msgstr "Вибрати Зображення"
+
+#: addon\globalPlugins\GemVDA\maindialog.py:734
+msgid ""
+"Image files (*.png;*.jpg;*.jpeg;*.gif;*.webp)|*.png;*.jpg;*.jpeg;*.gif;*.webp"
+msgstr ""
+"Файли зображень (*.png;*.jpg;*.jpeg;*.gif;*.webp)|"
+"*.png;*.jpg;*.jpeg;*.gif;*.webp"
+
+#: addon\globalPlugins\GemVDA\maindialog.py:751
+msgid "Select Video"
+msgstr "Вибрати Відео"
+
+#: addon\globalPlugins\GemVDA\maindialog.py:752
+#, python-brace-format
+msgid "Video files ({ext})|{ext}"
+msgstr "Відеофайли ({ext})|{ext}"
+
+#. Translators: Label showing number of uploaded videos ready to send
+#: addon\globalPlugins\GemVDA\maindialog.py:773
+#, python-brace-format
+msgid "{count} video(s) uploaded"
+msgstr "Відвантажено {count} відео"
+
+#: addon\globalPlugins\GemVDA\maindialog.py:776
+msgid " attached"
+msgstr " додано"
+
+#: addon\globalPlugins\GemVDA\maindialog.py:807
+#, python-brace-format
+msgid "Video upload failed: {path}"
+msgstr "Помилка завантаження відео: {path}"
+
+#: addon\globalPlugins\GemVDA\maindialog.py:823
+#, python-brace-format
+msgid "Video upload failed: {error}"
+msgstr "Помилка відвантаження відео: {error}"
+
+#. Translators: Message when conversation is cleared
+#: addon\globalPlugins\GemVDA\maindialog.py:842
+msgid "Conversation cleared"
+msgstr "Бесіду видалено"
+
+#. Translators: Message when response is copied
+#: addon\globalPlugins\GemVDA\maindialog.py:852
+msgid "Response copied to clipboard"
+msgstr "Відповідь скопійовано в буфер обміну"
+
+#. Translators: Message when there's no response to copy
+#: addon\globalPlugins\GemVDA\maindialog.py:856
+msgid "No response to copy"
+msgstr "Немає відповіді для копіювання"
+
+#. Translators: Title of API key configuration dialog
+#: addon\globalPlugins\GemVDA\__init__.py:72
+msgid "Gemini API Key"
+msgstr "Ключ Gemini API"
+
+#: addon\globalPlugins\GemVDA\__init__.py:84
+msgid ""
+"Enter your Gemini API key.\n"
+"Get one at: https://aistudio.google.com/apikey"
+msgstr ""
+"Введіть ключ Gemini API.\n"
+"Отримайте його за адресою: https://aistudio.google.com/apikey"
+
+#: addon\globalPlugins\GemVDA\__init__.py:94
+#, python-brace-format
+msgid "Current key source: {source}"
+msgstr "Поточне джерело ключа: {source}"
+
+#. Translators: Label for API key input field
+#: addon\globalPlugins\GemVDA\__init__.py:101
+msgid "API &Key:"
+msgstr "&Ключ API:"
+
+#. Translators: Button to delete saved API key
+#: addon\globalPlugins\GemVDA\__init__.py:124
+msgid "&Delete Key"
+msgstr "&Видалити ключ"
+
+#. Translators: Confirmation that API key was saved
+#: addon\globalPlugins\GemVDA\__init__.py:142
+msgid "API key saved"
+msgstr "Ключ API збережено"
+
+#. Translators: Error saving API key
+#: addon\globalPlugins\GemVDA\__init__.py:145
+msgid "Failed to save API key"
+msgstr "Не вдалося зберегти ключ API"
+
+#. Translators: Confirmation that API key was deleted
+#: addon\globalPlugins\GemVDA\__init__.py:151
+msgid "API key deleted"
+msgstr "Ключ API видалено"
+
+#. Translators: Error deleting API key
+#: addon\globalPlugins\GemVDA\__init__.py:155
+msgid "Failed to delete API key"
+msgstr "Не вдалося видалити ключ API"
+
+#: addon\globalPlugins\GemVDA\__init__.py:170
+msgid "Configure API &Key..."
+msgstr "Налаштувати &ключ API..."
+
+#: addon\globalPlugins\GemVDA\__init__.py:178
+msgid "Default &model:"
+msgstr "&Початкова модель:"
+
+#: addon\globalPlugins\GemVDA\__init__.py:191
+msgid "&Temperature (0-200):"
+msgstr "&Температура (0-200):"
+
+#: addon\globalPlugins\GemVDA\__init__.py:201
+msgid "Ma&x output tokens:"
+msgstr "&Максимальна кількість токенів на виході:"
+
+#: addon\globalPlugins\GemVDA\__init__.py:211
+msgid "&Stream responses"
+msgstr "&Потокова передача відповідей"
+
+#: addon\globalPlugins\GemVDA\__init__.py:218
+msgid "&Conversation mode (include history)"
+msgstr "&Режим розмови (включно з історією)"
+
+#: addon\globalPlugins\GemVDA\__init__.py:225
+msgid "&Remember system prompt"
+msgstr "&Запам'ятати системну підказку"
+
+#: addon\globalPlugins\GemVDA\__init__.py:232
+msgid "&Block Escape key in dialog"
+msgstr "&Блокувати клавішу Escape у діалозі"
+
+#: addon\globalPlugins\GemVDA\__init__.py:239
+msgid "&Filter markdown from responses"
+msgstr "&Фільтрувати markdown з відповідей"
+
+#. Video analysis prompt
+#. Translators: Label for video analysis prompt text field
+#: addon\globalPlugins\GemVDA\__init__.py:245
+msgid "&Video analysis prompt:"
+msgstr "Підказка для аналізу &відео:"
+
+#. Translators: Default video analysis prompt sent to the AI model
+#: addon\globalPlugins\GemVDA\__init__.py:251
+#: addon\globalPlugins\GemVDA\__init__.py:754
+msgid ""
+"Describe this video in detail, but concise. Get as much information as you "
+"can and if there is any important text in the video read it."
+msgstr ""
+"Опиши це відео детально, але лаконічно. Збери якомога більше інформації та, "
+"якщо у відео є важливий текст, прочитай його."
+
+#. Summarize selection prompt
+#. Translators: Label for summarize selection prompt text field
+#: addon\globalPlugins\GemVDA\__init__.py:257
+msgid "S&ummarize selection prompt:"
+msgstr "&Підсумувати вибране:"
+
+#. Translators: Default prompt used when summarizing selected text with AI
+#: addon\globalPlugins\GemVDA\__init__.py:263
+#: addon\globalPlugins\GemVDA\__init__.py:878
+msgid ""
+"Summarize the key points of the following text in a clear and concise manner:"
+msgstr ""
+"Підсумуй ключові моменти наведеного нижче тексту в чіткій і стислій формі:"
+
+#: addon\globalPlugins\GemVDA\__init__.py:270
+msgid "Sound Feedback"
+msgstr "Звуковий відгук"
+
+#: addon\globalPlugins\GemVDA\__init__.py:277
+msgid "Play sound when request &sent"
+msgstr "Відтворювати звук під час &надсилання запиту"
+
+#: addon\globalPlugins\GemVDA\__init__.py:285
+msgid "Play sound while &waiting"
+msgstr "Відтворювати звук під час &очікування"
+
+#: addon\globalPlugins\GemVDA\__init__.py:293
+msgid "Play sound when response &received"
+msgstr "Відтворювати звук &при отриманні відповіді"
+
+#. Translators: Menu item to open Gemini dialog
+#: addon\globalPlugins\GemVDA\__init__.py:427
+msgid "Open Gemini &Dialog...\tNVDA+G"
+msgstr "Відкрити &Діалог Gemini...\tNVDA+G"
+
+#. Translators: Menu item to open settings
+#: addon\globalPlugins\GemVDA\__init__.py:435
+msgid "&Settings..."
+msgstr "&Налаштування..."
+
+#. Translators: Menu item to open API key page
+#: addon\globalPlugins\GemVDA\__init__.py:441
+msgid "Get &API Key (web)..."
+msgstr "Отримати &ключ API (веб)..."
+
+#: addon\globalPlugins\GemVDA\__init__.py:447
+msgid "&Gemini"
+msgstr "&Gemini"
+
+#: addon\globalPlugins\GemVDA\__init__.py:491
+msgid ""
+"Google GenAI library not installed. Please run install_deps.py in the add-on "
+"folder."
+msgstr ""
+"Бібліотека Google GenAI не встановлена. Запустіть install_deps.py у папці "
+"додатка."
+
+#. Translators: Description for show dialog script
+#: addon\globalPlugins\GemVDA\__init__.py:623
+msgid "Show Gemini AI dialog"
+msgstr "Показати діалог Gemini AI"
+
+#. Translators: Description for describe screen script
+#: addon\globalPlugins\GemVDA\__init__.py:631
+msgid "Describe the entire screen using Gemini"
+msgstr "Описати весь екран за допомогою Gemini"
+
+#: addon\globalPlugins\GemVDA\__init__.py:636
+#: addon\globalPlugins\GemVDA\__init__.py:673
+#: addon\globalPlugins\GemVDA\__init__.py:801
+#: addon\globalPlugins\GemVDA\__init__.py:840
+msgid "Google GenAI library not installed."
+msgstr "Бібліотека Google GenAI не встановлена."
+
+#. Translators: Message while capturing screenshot
+#: addon\globalPlugins\GemVDA\__init__.py:645
+msgid "Capturing screen..."
+msgstr "Знімок екрана..."
+
+#. Translators: Error when screenshot fails
+#: addon\globalPlugins\GemVDA\__init__.py:650
+msgid "Failed to capture screenshot"
+msgstr "Не вдалося зробити знімок екрана"
+
+#. Translators: Description for describe object script
+#: addon\globalPlugins\GemVDA\__init__.py:668
+msgid "Describe the navigator object using Gemini"
+msgstr "Описати об'єкт навігатора за допомогою Gemini"
+
+#. Translators: Message while capturing object
+#: addon\globalPlugins\GemVDA\__init__.py:682
+msgid "Capturing object..."
+msgstr "Знімок об'єкта..."
+
+#. Translators: Error when object capture fails
+#: addon\globalPlugins\GemVDA\__init__.py:687
+msgid "Failed to capture object"
+msgstr "Не вдалося зробити знімок об’єкта"
+
+#. Upload video file
+#. Translators: Message while uploading video
+#: addon\globalPlugins\GemVDA\__init__.py:720
+msgid "Uploading video..."
+msgstr "Відвантаження відео..."
+
+#: addon\globalPlugins\GemVDA\__init__.py:734
+msgid "Video processing failed"
+msgstr "Помилка обробки відео"
+
+#. Translators: Message while analyzing video
+#: addon\globalPlugins\GemVDA\__init__.py:738
+msgid "Analyzing video..."
+msgstr "Аналіз відео..."
+
+#. Get the response text
+#: addon\globalPlugins\GemVDA\__init__.py:761
+#: addon\globalPlugins\GemVDA\__init__.py:893
+msgid "No response from AI"
+msgstr "Немає відповіді від ШІ"
+
+#: addon\globalPlugins\GemVDA\__init__.py:788
+#, python-brace-format
+msgid "Video analysis failed: {error}"
+msgstr "Помилка аналізу відео: {error}"
+
+#. Translators: Description for video capture toggle script
+#: addon\globalPlugins\GemVDA\__init__.py:796
+msgid "Start or stop video recording for Gemini analysis"
+msgstr "Почати або зупинити запис відео для аналізу Gemini"
+
+#. Translators: Error when video capture dependencies not available
+#: addon\globalPlugins\GemVDA\__init__.py:808
+msgid "Video capture not available. Missing dependencies."
+msgstr "Запис відео недоступний. Відсутні залежності."
+
+#. Stop recording
+#. Translators: Message when stopping video recording
+#: addon\globalPlugins\GemVDA\__init__.py:814
+msgid "Stopping recording..."
+msgstr "Зупинити запис..."
+
+#. Translators: Message when video saved successfully
+#: addon\globalPlugins\GemVDA\__init__.py:819
+msgid "Video saved. Sending to Gemini for analysis..."
+msgstr "Відео збережено. Відправлення в Gemini для аналізу..."
+
+#. Translators: Error when video save fails
+#: addon\globalPlugins\GemVDA\__init__.py:823
+msgid "Failed to save video"
+msgstr "Не вдалося зберегти відео"
+
+#. Translators: Message when video recording starts
+#: addon\globalPlugins\GemVDA\__init__.py:828
+msgid "Recording started. Press NVDA+V again to stop."
+msgstr "Запис розпочато. Щоб зупинити, знову натисніть NVDA+V."
+
+#. Translators: Error when video recording fails to start
+#: addon\globalPlugins\GemVDA\__init__.py:831
+msgid "Failed to start recording"
+msgstr "Не вдалося розпочати запис"
+
+#. Translators: Description for summarize selection script
+#: addon\globalPlugins\GemVDA\__init__.py:835
+msgid "Summarize selected text using Gemini"
+msgstr "Підсумувати вибраний текст за допомогою Gemini"
+
+#. Translators: Error when no text is selected for summarization
+#: addon\globalPlugins\GemVDA\__init__.py:862
+msgid "No text selected"
+msgstr "Текст не вибрано"
+
+#. Translators: Message while summarizing text
+#: addon\globalPlugins\GemVDA\__init__.py:866
+msgid "Summarizing..."
+msgstr "Підсумок..."
+
+#: addon\globalPlugins\GemVDA\__init__.py:906
+#, python-brace-format
+msgid "Summarization failed: {error}"
+msgstr "Помилка підсумовування: {error}"
+
+#. Add-on summary/title, usually the user visible name of the add-on
+#. Translators: Summary/title for this add-on
+#. to be shown on installation and add-on information found in add-on store
+#: buildVars.py:21
+msgid "GemVDA (Google Gemini AI NVDA)"
+msgstr "GemVDA (Google Gemini AI NVDA)"
+
+#. Add-on description
+#. Translators: Long description to be shown for this add-on on add-on information from add-on store
+#: buildVars.py:24
+msgid ""
+"Comprehensive Google Gemini AI capabilities integrated into NVDA.\n"
+"Supports Gemini 3, Gemini 2.5 Pro, Flash, and other models for chat, image "
+"description, and more."
+msgstr ""
+"Повна інтеграція можливостей Google Gemini AI в NVDA.  \n"
+"Підтримуються Gemini 3, Gemini 2.5 Pro, Flash та інші моделі для чатів, "
+"опису зображень тощо."
+
+#. Brief changelog for this version
+#. Translators: what's new content for the add-on version to be shown in the add-on store
+#: buildVars.py:30
+msgid "Initial release with Gemini AI integration."
+msgstr "Початковий випуск з інтеграцією Gemini AI."

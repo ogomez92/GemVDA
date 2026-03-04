@@ -5,8 +5,8 @@ import re
 
 confSpecs = {
     # Model settings
-    "model": "string(default='gemini-2.5-flash')",
-    "modelVision": "string(default='gemini-2.5-flash')",
+    "model": "string(default='gemini-3.1-flash-lite-preview')",
+    "modelVision": "string(default='gemini-3.1-flash-lite-preview')",
 
     # Generation parameters
     "temperature": "float(min=0.0, max=2.0, default=1.0)",

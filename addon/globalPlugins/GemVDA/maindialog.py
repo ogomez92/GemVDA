@@ -411,7 +411,7 @@ class GeminiDialog(wx.Dialog):
         message_text = self._format_message(block)
 
         if message_text.strip():
-            speech.speakText(message_text)
+            self._speak_long_text(message_text)
         else:
             # Translators: Message when the selected message is empty
             ui.message(_("Message {num} is empty").format(num=index + 1))
@@ -647,7 +647,7 @@ class GeminiDialog(wx.Dialog):
                     if get_safe_conf()["filterMarkdown"]:
                         chunk_text = filter_markdown(chunk_text)
                     if chunk_text.strip():  # Only speak non-empty chunks
-                        speech.speakText(chunk_text)
+                        self._speak_long_text(chunk_text)
 
             # Track that we received streaming chunks
             self._received_streaming_chunks = True
@@ -680,7 +680,8 @@ class GeminiDialog(wx.Dialog):
                     # Apply markdown filter if enabled
                     if get_safe_conf()["filterMarkdown"]:
                         response_text = filter_markdown(response_text)
-                    speech.speakText(response_text[:500])  # Limit initial speech
+                    # Split into paragraphs to avoid speech synth buffer limits
+                    self._speak_long_text(response_text)
 
             # Update braille
             if get_safe_conf()["feedback"]["brailleAutoFocus"]:
@@ -689,7 +690,7 @@ class GeminiDialog(wx.Dialog):
                     # Apply markdown filter if enabled
                     if get_safe_conf()["filterMarkdown"]:
                         response_text = filter_markdown(response_text)
-                    braille.handler.message(response_text[:100])
+                    braille.handler.message(response_text)
 
             # Reset streaming flag for next request
             self._received_streaming_chunks = False
@@ -877,6 +878,15 @@ class GeminiDialog(wx.Dialog):
                 pass
 
         self.Destroy()
+
+    def _speak_long_text(self, text: str):
+        """Speak text split into paragraphs to avoid speech synth buffer limits."""
+        # Split on double newlines (paragraphs) or single newlines for long text
+        paragraphs = [p.strip() for p in text.split('\n') if p.strip()]
+        if not paragraphs:
+            return
+        for paragraph in paragraphs:
+            speech.speakText(paragraph)
 
     def _play_sound(self, path: str, loop: bool = False):
         """Play a sound file."""

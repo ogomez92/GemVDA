@@ -24,7 +24,7 @@ addon_info = AddonInfo(
 	addon_description=_("""Comprehensive Google Gemini AI capabilities integrated into NVDA.
 Supports Gemini 3, Gemini 2.5 Pro, Flash, and other models for chat, image description, and more."""),
 	# version
-	addon_version="1.5.0",
+	addon_version="1.8.0",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
 	addon_changelog=_("""Initial release with Gemini AI integration."""),

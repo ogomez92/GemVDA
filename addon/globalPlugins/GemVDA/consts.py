@@ -71,12 +71,12 @@ class Model:
         return f"Model({self.id}, vision={self.vision})"
 
 
-# Available Gemini models (as of early 2026)
+# Available Gemini models (as of March 2026)
 GEMINI_MODELS = [
-    # Gemini 3 models (Preview)
+    # Gemini 3.1 models (Preview)
     Model(
-        id="gemini-3-pro-preview",
-        name="Gemini 3 Pro (Preview)",
+        id="gemini-3.1-pro-preview",
+        name="Gemini 3.1 Pro (Preview)",
         context_window=1000000,
         max_output_tokens=65536,
         vision=True,
@@ -87,10 +87,35 @@ GEMINI_MODELS = [
         id="gemini-3-flash-preview",
         name="Gemini 3 Flash (Preview)",
         context_window=1000000,
-        max_output_tokens=32768,
+        max_output_tokens=65536,
         vision=True,
         preview=True,
         thinking=True,
+    ),
+    Model(
+        id="gemini-3.1-flash-lite-preview",
+        name="Gemini 3.1 Flash-Lite (Preview)",
+        context_window=1000000,
+        max_output_tokens=65536,
+        vision=True,
+        preview=True,
+    ),
+    # Image generation models (Preview)
+    Model(
+        id="gemini-3.1-flash-image-preview",
+        name="Gemini 3.1 Flash Image (Preview)",
+        context_window=128000,
+        max_output_tokens=32768,
+        vision=True,
+        preview=True,
+    ),
+    Model(
+        id="gemini-3-pro-image-preview",
+        name="Gemini 3 Pro Image (Preview)",
+        context_window=65000,
+        max_output_tokens=32768,
+        vision=True,
+        preview=True,
     ),
     # Gemini 2.5 models (Production)
     Model(
@@ -115,19 +140,11 @@ GEMINI_MODELS = [
         max_output_tokens=8192,
         vision=True,
     ),
-    # Image generation model
-    Model(
-        id="gemini-2.5-flash-image",
-        name="Gemini 2.5 Flash Image",
-        context_window=32000,
-        max_output_tokens=8192,
-        vision=True,
-    ),
 ]
 
 # Default model
-DEFAULT_MODEL = "gemini-2.5-flash"
-DEFAULT_VISION_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-3.1-flash-lite-preview"
+DEFAULT_VISION_MODEL = "gemini-3.1-flash-lite-preview"
 
 # Model lookup helpers
 def get_model_by_id(model_id: str) -> Model | None:

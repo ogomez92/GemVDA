@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import struct
 import globalVars
 
 # Directory paths
@@ -9,7 +10,8 @@ ADDON_DIR = os.path.dirname(__file__)
 PLUGIN_DIR = os.path.dirname(ADDON_DIR)
 ADDON_ROOT = os.path.dirname(PLUGIN_DIR)
 DATA_DIR = os.path.join(globalVars.appArgs.configPath, "GemVDA")
-LIBS_DIR = os.path.join(ADDON_ROOT, "lib")
+_arch = "lib64" if struct.calcsize("P") == 8 else "lib32"
+LIBS_DIR = os.path.join(ADDON_ROOT, _arch)
 
 # Create data directory if it doesn't exist
 if not os.path.exists(DATA_DIR):

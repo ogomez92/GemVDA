@@ -46,7 +46,7 @@ try:
     GENAI_AVAILABLE = True
 except ImportError:
     GENAI_AVAILABLE = False
-    log.warning("google-genai not available. Run install_deps.py to install dependencies.")
+    log.warning("google-genai not available. Bundled libraries may be missing or corrupted.")
 
 # Global reference to active dialog for adding images
 addToSession = None

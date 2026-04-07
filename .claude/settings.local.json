@@ -14,7 +14,14 @@
       "Bash(do msgfmt -o \"T:/code/nvda/GemVDA/addon/locale/$lang/LC_MESSAGES/nvda.mo\" \"T:/code/nvda/GemVDA/addon/locale/$lang/LC_MESSAGES/nvda.po\")",
       "Bash(done)",
       "WebSearch",
-      "WebFetch(domain:ai.google.dev)"
+      "WebFetch(domain:ai.google.dev)",
+      "Bash(ls requirements*.txt pyproject.toml setup.py)",
+      "Bash(rm -rf addon/lib)",
+      "Bash(uv pip:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(rm -f GemVDA-*.nvda-addon)",
+      "Bash(scons .)"
     ]
   }
 }

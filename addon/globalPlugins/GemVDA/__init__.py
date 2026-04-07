@@ -11,11 +11,15 @@ import config
 import gui
 import ui
 import api
+import speech
+import speechViewer
 import textInfos
 from scriptHandler import script
 from gui.settingsDialogs import SettingsPanel, NVDASettingsDialog
 from gui import guiHelper, nvdaControls
 from logHandler import log
+from queueHandler import queueFunction, eventQueue
+from eventHandler import FocusLossCancellableSpeechCommand
 
 addonHandler.initTranslation()
 
@@ -58,10 +62,7 @@ except Exception as e:
     import traceback
     log.error(f"google-genai import failed: {e}")
     log.error(f"Full traceback:\n{traceback.format_exc()}")
-    log.warning(
-        "google-genai not found. Please run install_deps.py or install manually: "
-        "pip install google-genai"
-    )
+    log.warning("google-genai not found. Bundled libraries may be missing or corrupted.")
 
 
 class APIKeyDialog(wx.Dialog):
@@ -264,6 +265,18 @@ class GeminiSettingsPanel(SettingsPanel):
         saved_summarize_prompt = get_safe_conf()["summarizePrompt"]
         self._summarize_prompt_text.SetValue(saved_summarize_prompt if saved_summarize_prompt else self._default_summarize_prompt)
 
+        # Summarize last speech prompt
+        # Translators: Label for summarize last speech prompt text field
+        summarize_speech_prompt_label = wx.StaticText(self, label=_("Summarize last s&peech prompt:"))
+        sHelper.addItem(summarize_speech_prompt_label)
+        self._summarize_speech_prompt_text = sHelper.addItem(
+            wx.TextCtrl(self, style=wx.TE_MULTILINE, size=(-1, 75))
+        )
+        # Translators: Default prompt used when summarizing the last spoken text with AI
+        self._default_summarize_speech_prompt = _("Summarize the following text concisely. Respond in the same language as the text:")
+        saved_summarize_speech_prompt = get_safe_conf()["summarizeSpeechPrompt"]
+        self._summarize_speech_prompt_text.SetValue(saved_summarize_speech_prompt if saved_summarize_speech_prompt else self._default_summarize_speech_prompt)
+
         # Feedback section
         # Translators: Label for feedback settings group
         feedback_group = wx.StaticBoxSizer(
@@ -333,6 +346,13 @@ class GeminiSettingsPanel(SettingsPanel):
         else:
             get_safe_conf()["summarizePrompt"] = summarize_prompt_val
 
+        # Summarize speech prompt - store empty string if user left the localized default unchanged
+        summarize_speech_prompt_val = self._summarize_speech_prompt_text.GetValue().strip()
+        if summarize_speech_prompt_val == self._default_summarize_speech_prompt:
+            get_safe_conf()["summarizeSpeechPrompt"] = ""
+        else:
+            get_safe_conf()["summarizeSpeechPrompt"] = summarize_speech_prompt_val
+
         # Feedback
         get_safe_conf()["feedback"]["soundRequestSent"] = (
             self._snd_sent_checkbox.GetValue()
@@ -369,6 +389,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         # Video capture instance
         self._video_capture = None
 
+        # Speech history capture
+        self._last_speech = None
+        self._patch_speech()
+
         # Clean up old temporary files on startup
         self._cleanup_temp_files()
 
@@ -376,6 +400,34 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         self._create_menu()
 
         log.info("Gemini add-on initialized")
+
+    def _patch_speech(self):
+        """Monkey-patch speech.speak to capture the last spoken text."""
+        self._oldSpeak = speech.speech.speak
+
+        def _mySpeak(sequence, *args, **kwargs):
+            self._oldSpeak(sequence, *args, **kwargs)
+            text = self._get_sequence_text(sequence)
+            if text.strip():
+                queueFunction(eventQueue, self._on_speech, sequence)
+
+        speech.speech.speak = _mySpeak
+
+    def _unpatch_speech(self):
+        """Restore the original speech.speak."""
+        speech.speech.speak = self._oldSpeak
+
+    def _on_speech(self, sequence):
+        """Store the last spoken sequence as text."""
+        seq = [cmd for cmd in sequence if not isinstance(cmd, FocusLossCancellableSpeechCommand)]
+        self._last_speech = self._get_sequence_text(seq)
+
+    @staticmethod
+    def _get_sequence_text(sequence):
+        """Extract text from a speech sequence."""
+        return speechViewer.SPEECH_ITEM_SEPARATOR.join(
+            [x for x in sequence if isinstance(x, str)]
+        )
 
     def _cleanup_temp_files(self):
         """Clean up old screenshot and video files on startup."""
@@ -401,6 +453,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
     def terminate(self):
         """Clean up when add-on is disabled/NVDA exits."""
+        # Restore original speech function
+        self._unpatch_speech()
+
         # Stop video capture if running
         if self._video_capture and self._video_capture.is_recording:
             self._video_capture.stop()
@@ -486,10 +541,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         """Show the main Gemini dialog."""
         if not GENAI_AVAILABLE:
             # Translators: Error when google-genai is not installed
+            # Translators: Error when the bundled Google GenAI library fails to load
             ui.message(
                 _(
-                    "Google GenAI library not installed. "
-                    "Please run install_deps.py in the add-on folder."
+                    "Google GenAI library failed to load. "
+                    "Please reinstall the add-on."
                 )
             )
             return
@@ -901,6 +957,73 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             except Exception as e:
                 log.error(f"Summarize selection failed: {e}", exc_info=True)
                 # Translators: Error during text summarization
+                wx.CallAfter(
+                    ui.message,
+                    _("Summarization failed: {error}").format(error=str(e)),
+                )
+
+        thread = threading.Thread(target=do_summarize, daemon=True)
+        thread.start()
+
+    @script(
+        # Translators: Description for summarize last speech script
+        description=_("Summarize the last spoken text using Gemini"),
+        gesture="kb:nvda+shift+h",
+    )
+    def script_summarizeLastSpeech(self, gesture):
+        if not GENAI_AVAILABLE:
+            ui.message(_("Google GenAI library not installed."))
+            return
+
+        client = self._get_client()
+        if not client:
+            ui.message(_(NO_API_KEY_MSG))
+            return
+
+        last_text = self._last_speech
+        if not last_text or not last_text.strip():
+            # Translators: Error when no speech history is available
+            ui.message(_("No speech history available"))
+            return
+
+        # Translators: Message while summarizing last speech
+        ui.message(_("Summarizing..."))
+
+        import threading
+
+        def do_summarize():
+            try:
+                from google.genai import types
+
+                prompt = get_safe_conf()["summarizeSpeechPrompt"]
+                if not prompt:
+                    # Translators: Default prompt used when summarizing the last spoken text with AI
+                    prompt = _("Summarize the following text concisely. Respond in the same language as the text:")
+
+                full_prompt = f"{prompt}\n\n{last_text}"
+
+                model_id = get_safe_conf()["model"]
+                response = client.models.generate_content(
+                    model=model_id,
+                    contents=[
+                        types.Content(
+                            role="user",
+                            parts=[types.Part(text=full_prompt)],
+                        )
+                    ],
+                )
+
+                result_text = response.text if response.text else _("No response from AI")
+
+                if get_safe_conf()["filterMarkdown"]:
+                    from .mdfilter import filter_markdown
+                    result_text = filter_markdown(result_text)
+
+                wx.CallAfter(ui.message, result_text)
+
+            except Exception as e:
+                log.error(f"Summarize last speech failed: {e}", exc_info=True)
+                # Translators: Error during speech summarization
                 wx.CallAfter(
                     ui.message,
                     _("Summarization failed: {error}").format(error=str(e)),

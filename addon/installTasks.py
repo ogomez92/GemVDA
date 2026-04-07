@@ -12,26 +12,6 @@ def onInstall():
     """Called when the add-on is installed."""
     log.info("GemVDA add-on installed")
 
-    # Check if dependencies are installed
-    addon_dir = os.path.dirname(__file__)
-    lib_dir = os.path.join(addon_dir, "lib")
-
-    if not os.path.exists(lib_dir) or not os.listdir(lib_dir):
-        # Dependencies not installed - show message
-        import gui
-        import wx
-
-        wx.CallAfter(
-            gui.messageBox,
-            "GemVDA add-on installed successfully!\n\n"
-            "IMPORTANT: You need to install dependencies before using this add-on.\n\n"
-            "Run install_deps.bat or install_deps.py in the add-on folder:\n"
-            "%APPDATA%\\nvda\\addons\\GemVDA\n\n"
-            "Then restart NVDA.",
-            "GemVDA Add-on - Setup Required",
-            wx.OK | wx.ICON_INFORMATION,
-        )
-
 
 def onUninstall():
     """Called when the add-on is uninstalled."""

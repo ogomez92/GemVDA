@@ -35,6 +35,9 @@ confSpecs = {
     # Summarize selection prompt (empty = use localized default)
     "summarizePrompt": 'string(default="")',
 
+    # Summarize last speech prompt (empty = use localized default)
+    "summarizeSpeechPrompt": 'string(default="")',
+
     # Image settings
     "images": {
         "resize": "boolean(default=True)",

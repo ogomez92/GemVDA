@@ -13,10 +13,7 @@ from datetime import datetime
 from logHandler import log
 
 # Add lib directory to path
-ADDON_DIR = os.path.dirname(__file__)
-PLUGIN_DIR = os.path.dirname(ADDON_DIR)
-ADDON_ROOT = os.path.dirname(PLUGIN_DIR)
-LIBS_DIR = os.path.join(ADDON_ROOT, "lib")
+from .consts import LIBS_DIR
 
 if LIBS_DIR not in sys.path:
     sys.path.insert(0, LIBS_DIR)

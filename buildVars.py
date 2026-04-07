@@ -24,7 +24,7 @@ addon_info = AddonInfo(
 	addon_description=_("""Comprehensive Google Gemini AI capabilities integrated into NVDA.
 Supports Gemini 3, Gemini 2.5 Pro, Flash, and other models for chat, image description, and more."""),
 	# version
-	addon_version="1.8.0",
+	addon_version="2.0.0",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
 	addon_changelog=_("""Initial release with Gemini AI integration."""),
@@ -37,9 +37,9 @@ Supports Gemini 3, Gemini 2.5 Pro, Flash, and other models for chat, image descr
 	# Documentation file name
 	addon_docFileName="readme.html",
 	# Minimum NVDA version supported (e.g. "2019.3.0", minor version is optional)
-	addon_minimumNVDAVersion="2023.1.0",
+	addon_minimumNVDAVersion="2024.1.0",
 	# Last NVDA version supported/tested (e.g. "2024.4.0", ideally more recent than minimum version)
-	addon_lastTestedNVDAVersion="2025.1.0",
+	addon_lastTestedNVDAVersion="2026.1.0",
 	# Add-on update channel (default is None, denoting stable releases,
 	# and for development releases, use "dev".)
 	# Do not change unless you know what you are doing!
@@ -72,7 +72,8 @@ i18nSources: list[str] = pythonSources + ["buildVars.py"]
 excludedFiles: list[str] = [
 	"**/__pycache__",
 	"**/*.pyc",
-	"lib/**/*.dist-info",
+	"lib32/**/*.dist-info",
+	"lib64/**/*.dist-info",
 ]
 
 # Base language for the NVDA add-on
